@@ -1,285 +1,764 @@
 <!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8" />
-<title>GlowGrid 5x5</title>
+<!-- saved from url=(0060)file:///Users/erwannrobin/Sources/erwann/glowgrid/game5.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GlowGrid</title>
 
 <style>
-  body {
-    margin: 0;
-    height: 100vh;
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-    background:
-      radial-gradient(circle at top, #ffffff, #eef2f7);
+body {
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #0a0f1e;
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
 
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+/* ── Animated background ── */
+.bg-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.12;
+  pointer-events: none;
+  animation: orb-drift 22s ease-in-out infinite;
+}
+.bg-orb:nth-child(1) {
+  width: 500px; height: 500px;
+  background: #3b82f6;
+  top: -150px; left: -150px;
+  animation-delay: 0s;
+}
+.bg-orb:nth-child(2) {
+  width: 350px; height: 350px;
+  background: #8b5cf6;
+  bottom: -80px; right: -80px;
+  animation-delay: -8s;
+}
+.bg-orb:nth-child(3) {
+  width: 250px; height: 250px;
+  background: #06b6d4;
+  bottom: 25%; left: 8%;
+  animation-delay: -16s;
+}
 
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+@keyframes orb-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(40px, -30px) scale(1.06); }
+  66%       { transform: translate(-25px, 40px) scale(0.94); }
+}
 
-    color: #334155;
-  }
+/* ── Layout ── */
+.container {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+}
 
-  h2 {
-    font-weight: 500;
-    letter-spacing: -0.5px;
-    margin-bottom: 8px;
-    opacity: 0.8;
-  }
+/* ── Header ── */
+.title {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #e2e8f0 30%, #64748b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-align: center;
+  line-height: 1;
+}
 
-  #moves {
-    margin-bottom: 24px;
-    opacity: 0.45;
-    font-size: 14px;
-  }
+.subtitle {
+  font-size: 11px;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-top: 5px;
+  text-align: center;
+}
 
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(5, 74px);
-    gap: 14px;
-  }
+/* ── Stats ── */
+.stats {
+  display: flex;
+  gap: 28px;
+  align-items: center;
+}
 
-  .cell {
-    width: 74px;
-    height: 74px;
+.stat { text-align: center; }
 
-    border-radius: 22px;
+.stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #e2e8f0;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
 
-    background: rgba(255,255,255,0.35);
+.stat-label {
+  font-size: 10px;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-top: 3px;
+}
 
-    backdrop-filter: blur(18px);
+.stat-divider {
+  width: 1px;
+  height: 34px;
+  background: rgba(255,255,255,0.06);
+}
 
-    border: 1px solid rgba(255,255,255,0.6);
+/* ── Difficulty selector ── */
+.difficulty {
+  display: flex;
+  gap: 5px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 4px;
+}
 
-    box-shadow:
-      inset 0 1px 1px rgba(255,255,255,0.7),
-      0 2px 10px rgba(148,163,184,0.08);
+.diff-btn {
+  padding: 5px 16px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  letter-spacing: 0.2px;
+}
 
-    transition:
-      transform 0.18s ease,
-      background 0.25s ease,
-      box-shadow 0.25s ease;
+.diff-btn:hover { color: #64748b; }
 
-    cursor: pointer;
-  }
+.diff-btn.active {
+  background: rgba(255,255,255,0.08);
+  color: #e2e8f0;
+}
 
-  .cell:hover {
-    transform: scale(1.02);
-  }
+/* ── Grid ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 70px);
+  gap: 12px;
+}
 
-  .cell:active {
-    transform: scale(0.97);
-  }
+/* ── Cell ── */
+.cell {
+  width: 70px;
+  height: 70px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,0.04),
+    0 6px 20px rgba(0,0,0,0.4);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 0.15s ease,
+    background 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
+  outline: none;
 
-  .on {
-    background:
-      radial-gradient(
-        circle at 50% 50%,
-        rgba(255,255,255,0.95),
-        rgba(186,230,253,0.55)
-      );
+  animation: cell-in 0.35s ease both;
+  animation-delay: calc(var(--idx) * 18ms);
+}
 
-    border: 1px solid rgba(255,255,255,0.9);
+@keyframes cell-in {
+  from { opacity: 0; transform: scale(0.75); }
+  to   { opacity: 1; transform: scale(1); }
+}
 
-    box-shadow:
-      0 0 18px rgba(186,230,253,0.35),
-      inset 0 1px 2px rgba(255,255,255,0.9);
-  }
+.cell:hover {
+  transform: translateY(-2px) scale(1.04);
+  border-color: rgba(255,255,255,0.14);
+}
 
-  .previewPlus {
-    box-shadow:
-      0 0 0 2px rgba(34,197,94,0.18),
-      0 0 12px rgba(34,197,94,0.12);
-  }
+.cell:active { transform: scale(0.94); }
 
-  .previewCross {
-    box-shadow:
-      0 0 0 2px rgba(249,115,22,0.16),
-      0 0 12px rgba(249,115,22,0.10);
-  }
+.cell:focus-visible {
+  outline: 2px solid rgba(96,165,250,0.55);
+  outline-offset: 2px;
+}
 
-  button {
-    margin-top: 20px;
+/* ON state */
+.cell.on {
+  background: radial-gradient(circle at 38% 32%, #bae6fd, #60a5fa 55%, #3b82f6);
+  border-color: rgba(147,197,253,0.45);
+  box-shadow:
+    0 0 22px rgba(59,130,246,0.5),
+    0 0 50px rgba(59,130,246,0.18),
+    inset 0 1px 2px rgba(255,255,255,0.45);
+}
 
-    padding: 10px 16px;
+/* Shine on lit cells */
+.cell.on::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 28% 28%, rgba(255,255,255,0.35), transparent 58%);
+  pointer-events: none;
+}
 
-    border-radius: 14px;
+/* Preview highlight */
+.cell.preview {
+  border-color: rgba(250,204,21,0.5);
+  box-shadow:
+    0 0 0 2px rgba(250,204,21,0.25),
+    0 0 18px rgba(250,204,21,0.2),
+    0 6px 20px rgba(0,0,0,0.4);
+  transform: scale(1.02);
+}
 
-    border: 1px solid rgba(255,255,255,0.7);
+/* Hint pulse */
+.cell.hint-flash {
+  animation: hint-pulse 0.55s ease-in-out 3;
+}
 
-    background: rgba(255,255,255,0.45);
+@keyframes hint-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(52,211,153,0.2), 0 6px 20px rgba(0,0,0,0.4); }
+  50%       { box-shadow: 0 0 0 3px rgba(52,211,153,0.75), 0 0 28px rgba(52,211,153,0.45), 0 6px 20px rgba(0,0,0,0.4); border-color: rgba(52,211,153,0.55); }
+}
 
-    backdrop-filter: blur(12px);
+/* Click ripple */
+.ripple {
+  position: absolute;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.22);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  animation: ripple-out 0.38s ease-out forwards;
+  pointer-events: none;
+}
 
-    color: #475569;
+@keyframes ripple-out {
+  to { transform: translate(-50%, -50%) scale(3.2); opacity: 0; }
+}
 
-    font-size: 14px;
+/* ── Action buttons ── */
+.actions {
+  display: flex;
+  gap: 10px;
+}
 
-    cursor: pointer;
+.btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.05);
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  backdrop-filter: blur(8px);
+  letter-spacing: 0.1px;
+}
 
-    transition: all 0.2s ease;
-  }
+.btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.09);
+  color: #94a3b8;
+  border-color: rgba(255,255,255,0.13);
+}
 
-  button:hover {
-    background: rgba(255,255,255,0.65);
-  }
+.btn:active:not(:disabled) { transform: scale(0.96); }
+
+.btn:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+
+.btn-badge {
+  background: rgba(255,255,255,0.07);
+  border-radius: 6px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* ── Win overlay ── */
+.win-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(14px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+
+.win-overlay.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.win-card {
+  background: rgba(10,15,30,0.92);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 28px;
+  padding: 44px 52px;
+  text-align: center;
+  transform: scale(0.82) translateY(24px);
+  transition: transform 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow:
+    0 0 70px rgba(59,130,246,0.18),
+    0 28px 60px rgba(0,0,0,0.5);
+}
+
+.win-overlay.visible .win-card {
+  transform: scale(1) translateY(0);
+}
+
+.win-emoji {
+  font-size: 54px;
+  display: block;
+  margin-bottom: 14px;
+  animation: emoji-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
+}
+
+@keyframes emoji-pop {
+  from { transform: scale(0) rotate(-15deg); }
+  to   { transform: scale(1) rotate(0deg); }
+}
+
+.win-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #e2e8f0;
+  letter-spacing: -0.3px;
+  margin-bottom: 6px;
+}
+
+.win-caption {
+  font-size: 13px;
+  color: #334155;
+  margin-bottom: 24px;
+}
+
+.win-stats {
+  display: flex;
+  gap: 36px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.win-stat-value {
+  font-size: 34px;
+  font-weight: 700;
+  color: #60a5fa;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.win-stat-label {
+  font-size: 10px;
+  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-top: 4px;
+}
+
+.win-new-best {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fbbf24;
+  background: rgba(251,191,36,0.08);
+  border: 1px solid rgba(251,191,36,0.18);
+  border-radius: 8px;
+  padding: 4px 12px;
+  margin-bottom: 24px;
+  letter-spacing: 0.3px;
+}
+
+.btn-play-again {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: white;
+  border: none;
+  padding: 13px 36px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 24px rgba(59,130,246,0.38);
+  letter-spacing: 0.1px;
+}
+
+.btn-play-again:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 28px rgba(59,130,246,0.5);
+}
+
+.btn-play-again:active { transform: scale(0.97); }
+
+/* ── Confetti particles ── */
+.particle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 99;
+  border-radius: 50%;
+  animation: particle-fly var(--dur) ease-out var(--delay) both;
+}
+
+@keyframes particle-fly {
+  0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--tx), var(--ty)) scale(0.2); opacity: 0; }
+}
 </style>
 </head>
 
 <body>
 
-<h2>GlowGrid 5×5</h2>
-<div id="moves">Moves: 0</div>
+<div class="bg-orb"></div>
+<div class="bg-orb"></div>
+<div class="bg-orb"></div>
 
-<div class="grid" id="grid"></div>
+<div class="container">
 
-<div>
-  <button onclick="reset()">Reset</button>
-  <button onclick="hint()">Hint</button>
+  <div>
+    <div class="title">GlowGrid</div>
+    <div class="subtitle">Light them all</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-value" id="moves-val">0</div>
+      <div class="stat-label">Moves</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat">
+      <div class="stat-value" id="best-val">—</div>
+      <div class="stat-label">Best</div>
+    </div>
+  </div>
+
+  <div class="difficulty" role="group" aria-label="Difficulty">
+    <button class="diff-btn" data-diff="easy">Easy</button>
+    <button class="diff-btn active" data-diff="medium">Medium</button>
+    <button class="diff-btn" data-diff="hard">Hard</button>
+  </div>
+
+  <div class="grid" id="grid" role="grid" aria-label="GlowGrid puzzle"><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 0;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 1;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 2;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 3;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 4;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 5;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 6;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 7;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 8;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 9;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 10;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 11;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 12;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 13;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 14;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 15;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 16;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 17;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 18;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 19;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 20;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 21;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 22;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 23;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 24;"></div></div>
+
+  <div class="actions">
+    <button class="btn" id="btn-undo" onclick="undo()" disabled="">
+      ↩ Undo
+    </button>
+    <button class="btn" id="btn-hint" onclick="hint()">
+      ✦ Hint
+      <span class="btn-badge" id="hint-count">3</span>
+    </button>
+    <button class="btn" onclick="newGame()">
+      ↺ New
+    </button>
+  </div>
+
+</div>
+
+<!-- Win overlay -->
+<div class="win-overlay" id="win-overlay" role="dialog" aria-modal="true" aria-label="You won">
+  <div class="win-card">
+    <span class="win-emoji">✨</span>
+    <div class="win-title">All lit up!</div>
+    <div class="win-caption" id="win-caption">Well played.</div>
+    <div class="win-stats">
+      <div class="win-stat">
+        <div class="win-stat-value" id="win-moves">0</div>
+        <div class="win-stat-label">Moves</div>
+      </div>
+      <div class="win-stat">
+        <div class="win-stat-value" id="win-best">—</div>
+        <div class="win-stat-label">Best</div>
+      </div>
+    </div>
+    <div class="win-new-best" id="win-new-best" style="display:none">★ New best!</div>
+    <button class="btn-play-again" onclick="newGame()">Play Again</button>
+  </div>
 </div>
 
 <script>
-const size = 5;
+const SIZE = 5;
+const DIFF_STEPS = { easy: 6, medium: 10, hard: 16 };
+
+let state = [];
 let moves = 0;
+let hintsLeft = 3;
+let history = []; // stack of state snapshots (before each move)
+let currentDiff = 'medium';
+let cells = []; // live DOM references
 
-// état
-let state = Array(size * size).fill(false);
+// ── Patterns ────────────────────────────────────────────────
 
-// voisins +
 function plusPattern(i) {
-  const x = i % size;
-  const y = Math.floor(i / size);
-  const res = [i];
-
-  if (x > 0) res.push(i - 1);
-  if (x < size - 1) res.push(i + 1);
-  if (y > 0) res.push(i - size);
-  if (y < size - 1) res.push(i + size);
-
-  return res;
+  const x = i % SIZE, y = Math.floor(i / SIZE);
+  const r = [i];
+  if (x > 0)          r.push(i - 1);
+  if (x < SIZE - 1)   r.push(i + 1);
+  if (y > 0)          r.push(i - SIZE);
+  if (y < SIZE - 1)   r.push(i + SIZE);
+  return r;
 }
 
-// voisins X (diagonales)
 function crossPattern(i) {
-  const x = i % size;
-  const y = Math.floor(i / size);
-  const res = [i];
-
-  if (x > 0 && y > 0) res.push(i - size - 1);
-  if (x < size - 1 && y > 0) res.push(i - size + 1);
-  if (x > 0 && y < size - 1) res.push(i + size - 1);
-  if (x < size - 1 && y < size - 1) res.push(i + size + 1);
-
-  return res;
+  const x = i % SIZE, y = Math.floor(i / SIZE);
+  const r = [i];
+  if (x > 0 && y > 0)             r.push(i - SIZE - 1);
+  if (x < SIZE-1 && y > 0)        r.push(i - SIZE + 1);
+  if (x > 0 && y < SIZE-1)        r.push(i + SIZE - 1);
+  if (x < SIZE-1 && y < SIZE-1)   r.push(i + SIZE + 1);
+  return r;
 }
 
-function toggle(i) {
-  state[i] = !state[i];
+function affectedCells(i) {
+  return state[i] ? plusPattern(i) : crossPattern(i);
 }
 
-function clickCell(i) {
-  const wasOn = state[i];
+// ── State helpers ────────────────────────────────────────────
 
-  const affected = wasOn ? plusPattern(i) : crossPattern(i);
-
-  affected.forEach(toggle);
-
-  moves++;
-  update();
+function applyToggle(i) {
+  affectedCells(i).forEach(j => { state[j] = !state[j]; });
 }
 
-function update() {
-  const grid = document.getElementById("grid");
-  grid.innerHTML = "";
+function snapshotState() {
+  return state.slice();
+}
 
-  state.forEach((on, i) => {
-    const cell = document.createElement("div");
-    cell.className = "cell" + (on ? " on" : "");
+// ── Rendering ────────────────────────────────────────────────
 
-    // preview au hover
-    cell.onmouseenter = () => preview(i, on);
-    cell.onmouseleave = clearPreview;
+function buildGrid() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  cells = [];
 
-    cell.onclick = () => clickCell(i);
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell' + (state[i] ? ' on' : '');
+    cell.setAttribute('role', 'gridcell');
+    cell.setAttribute('tabindex', '0');
+    cell.setAttribute('aria-pressed', state[i] ? 'true' : 'false');
+    cell.style.setProperty('--idx', i);
+
+    cell.addEventListener('mouseenter', () => previewCells(i));
+    cell.addEventListener('mouseleave', clearPreview);
+    cell.addEventListener('click', () => handleClick(i, cell));
+    cell.addEventListener('keydown', e => handleKey(e, i));
 
     grid.appendChild(cell);
-  });
-
-  document.getElementById("moves").innerText = "Moves: " + moves;
-
-  checkWin();
+    cells.push(cell);
+  }
 }
 
-function preview(i, isOn) {
-  clearPreview();
-
-  const pattern = isOn ? plusPattern(i) : crossPattern(i);
-  const grid = document.getElementById("grid").children;
-
-  pattern.forEach(j => {
-    grid[j].classList.add(isOn ? "previewPlus" : "previewCross");
+function syncCells() {
+  cells.forEach((cell, i) => {
+    cell.className = 'cell' + (state[i] ? ' on' : '');
+    cell.setAttribute('aria-pressed', state[i] ? 'true' : 'false');
   });
+  document.getElementById('moves-val').textContent = moves;
+  document.getElementById('btn-undo').disabled = history.length === 0;
+  document.getElementById('hint-count').textContent = hintsLeft;
+  document.getElementById('btn-hint').disabled = hintsLeft === 0;
+}
+
+function previewCells(i) {
+  clearPreview();
+  affectedCells(i).forEach(j => cells[j].classList.add('preview'));
 }
 
 function clearPreview() {
-  const cells = document.getElementById("grid").children;
-  for (let c of cells) {
-    c.classList.remove("previewPlus", "previewCross");
-  }
+  cells.forEach(c => c.classList.remove('preview', 'hint-flash'));
 }
+
+// ── Interaction ──────────────────────────────────────────────
+
+function handleClick(i, cell) {
+  history.push(snapshotState());
+  if (history.length > 60) history.shift();
+
+  applyToggle(i);
+  moves++;
+
+  // ripple effect
+  const ripple = document.createElement('div');
+  ripple.className = 'ripple';
+  cell.appendChild(ripple);
+  ripple.addEventListener('animationend', () => ripple.remove(), { once: true });
+
+  clearPreview();
+  syncCells();
+  // re-attach hover preview after class reset
+  previewCells(i);
+  checkWin();
+}
+
+function undo() {
+  if (!history.length) return;
+  state = history.pop();
+  if (moves > 0) moves--;
+  clearPreview();
+  syncCells();
+}
+
+function hint() {
+  if (hintsLeft <= 0) return;
+
+  // greedy: find the cell that would turn on the most currently-off cells
+  let best = 0, bestScore = -1;
+  for (let i = 0; i < state.length; i++) {
+    const score = affectedCells(i).filter(j => !state[j]).length;
+    if (score > bestScore) { bestScore = score; best = i; }
+  }
+
+  hintsLeft--;
+  clearPreview();
+  cells[best].classList.add('hint-flash');
+  cells[best].addEventListener('animationend', () => {
+    cells[best].classList.remove('hint-flash');
+  }, { once: true });
+
+  syncCells();
+}
+
+function handleKey(e, i) {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    handleClick(i, cells[i]);
+    return;
+  }
+  const x = i % SIZE, y = Math.floor(i / SIZE);
+  let next = -1;
+  if (e.key === 'ArrowRight' && x < SIZE - 1) next = i + 1;
+  if (e.key === 'ArrowLeft'  && x > 0)        next = i - 1;
+  if (e.key === 'ArrowDown'  && y < SIZE - 1) next = i + SIZE;
+  if (e.key === 'ArrowUp'    && y > 0)        next = i - SIZE;
+  if (next >= 0) { e.preventDefault(); cells[next].focus(); }
+}
+
+// ── Puzzle generation ────────────────────────────────────────
+
+function generatePuzzle() {
+  state = Array(SIZE * SIZE).fill(true);
+  const steps = DIFF_STEPS[currentDiff];
+  for (let k = 0; k < steps; k++) {
+    applyToggle(Math.floor(Math.random() * state.length));
+  }
+  moves = 0;
+  history = [];
+  hintsLeft = 3;
+}
+
+// ── Win ──────────────────────────────────────────────────────
 
 function checkWin() {
-  if (state.every(v => v)) {
-    setTimeout(() => alert("🎉 Tout allumé en " + moves + " coups !"), 100);
+  if (!state.every(v => v)) return;
+
+  const bestKey = 'glowgrid-best-' + currentDiff;
+  const prev = parseInt(localStorage.getItem(bestKey) || '0');
+  const isNew = !prev || moves < prev;
+  if (isNew) localStorage.setItem(bestKey, moves);
+
+  const displayBest = isNew ? moves : prev;
+
+  document.getElementById('win-moves').textContent = moves;
+  document.getElementById('win-best').textContent = displayBest;
+  document.getElementById('win-caption').textContent =
+    moves <= 5 ? 'Flawless.' : moves <= 10 ? 'Well played.' : 'Nice one!';
+  document.getElementById('win-new-best').style.display = isNew ? 'inline-flex' : 'none';
+
+  document.getElementById('win-overlay').classList.add('visible');
+  refreshBestDisplay();
+  spawnParticles();
+}
+
+// ── Particles ────────────────────────────────────────────────
+
+function spawnParticles() {
+  const colors = ['#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f472b6', '#38bdf8'];
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+
+  for (let i = 0; i < 48; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const size = 5 + Math.random() * 9;
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 100 + Math.random() * 220;
+    p.style.cssText = `
+      left: ${cx}px; top: ${cy}px;
+      width: ${size}px; height: ${size}px;
+      background: ${colors[i % colors.length]};
+      --tx: ${(Math.cos(angle) * dist).toFixed(1)}px;
+      --ty: ${(Math.sin(angle) * dist - 60).toFixed(1)}px;
+      --dur: ${(0.55 + Math.random() * 0.9).toFixed(2)}s;
+      --delay: ${(Math.random() * 0.15).toFixed(2)}s;
+    `;
+    document.body.appendChild(p);
+    p.addEventListener('animationend', () => p.remove(), { once: true });
   }
 }
 
-// génération simple (à améliorer ensuite)
-function generatePuzzle(steps = 8) {
-  state = Array(size * size).fill(true);
+// ── New game ─────────────────────────────────────────────────
 
-  for (let k = 0; k < steps; k++) {
-    const i = Math.floor(Math.random() * state.length);
-    clickCell(i);
-  }
-
-  moves = 0;
+function newGame() {
+  document.getElementById('win-overlay').classList.remove('visible');
+  generatePuzzle();
+  buildGrid();
+  refreshBestDisplay();
 }
 
-function reset() {
-  generatePuzzle(8);
-  update();
+function refreshBestDisplay() {
+  const best = localStorage.getItem('glowgrid-best-' + currentDiff);
+  document.getElementById('best-val').textContent = best || '—';
 }
 
-// hint simple
-function hint() {
-  let best = 0;
-  let bestScore = -1;
+// ── Difficulty buttons ───────────────────────────────────────
 
-  for (let i = 0; i < state.length; i++) {
-    const pattern = state[i] ? plusPattern(i) : crossPattern(i);
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelector('.diff-btn.active').classList.remove('active');
+    btn.classList.add('active');
+    currentDiff = btn.dataset.diff;
+    newGame();
+  });
+});
 
-    let score = pattern.filter(j => !state[j]).length;
-
-    if (score > bestScore) {
-      bestScore = score;
-      best = i;
-    }
-  }
-
-  const grid = document.getElementById("grid").children;
-  grid[best].classList.add("previewPlus");
-
-  setTimeout(clearPreview, 800);
-
-  moves++; // pénalité
-}
-
-generatePuzzle();
-update();
+// ── Init ─────────────────────────────────────────────────────
+newGame();
 </script>
 
-</body>
-</html>
+
+
+</body></html>
