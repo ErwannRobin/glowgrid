@@ -91,6 +91,50 @@ body {
   text-align: center;
 }
 
+/* ── Date navigation ── */
+.date-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.04);
+  color: #475569;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  padding: 0;
+  line-height: 1;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.08);
+  color: #94a3b8;
+  border-color: rgba(255,255,255,0.13);
+}
+
+.nav-btn:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
+.puzzle-label {
+  font-size: 12px;
+  color: #334155;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  text-align: center;
+  min-width: 140px;
+}
+
 /* ── Stats ── */
 .stats {
   display: flex;
@@ -120,15 +164,6 @@ body {
   width: 1px;
   height: 34px;
   background: rgba(255,255,255,0.06);
-}
-
-/* ── Puzzle label ── */
-.puzzle-label {
-  font-size: 12px;
-  color: #334155;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  text-align: center;
 }
 
 /* ── Grid ── */
@@ -189,7 +224,6 @@ body {
     inset 0 1px 2px rgba(255,255,255,0.45);
 }
 
-/* Shine on lit cells */
 .cell.on::before {
   content: '';
   position: absolute;
@@ -207,16 +241,6 @@ body {
     0 0 18px rgba(250,204,21,0.2),
     0 6px 20px rgba(0,0,0,0.4);
   transform: scale(1.02);
-}
-
-/* Hint pulse */
-.cell.hint-flash {
-  animation: hint-pulse 0.55s ease-in-out 3;
-}
-
-@keyframes hint-pulse {
-  0%, 100% { box-shadow: 0 0 0 2px rgba(52,211,153,0.2), 0 6px 20px rgba(0,0,0,0.4); }
-  50%       { box-shadow: 0 0 0 3px rgba(52,211,153,0.75), 0 0 28px rgba(52,211,153,0.45), 0 6px 20px rgba(0,0,0,0.4); border-color: rgba(52,211,153,0.55); }
 }
 
 /* Click ripple */
@@ -258,29 +282,13 @@ body {
   letter-spacing: 0.1px;
 }
 
-.btn:hover:not(:disabled) {
+.btn:hover {
   background: rgba(255,255,255,0.09);
   color: #94a3b8;
   border-color: rgba(255,255,255,0.13);
 }
 
-.btn:active:not(:disabled) { transform: scale(0.96); }
-
-.btn:disabled {
-  opacity: 0.28;
-  cursor: not-allowed;
-}
-
-.btn-badge {
-  background: rgba(255,255,255,0.07);
-  border-radius: 6px;
-  padding: 1px 7px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #475569;
-  min-width: 20px;
-  text-align: center;
-}
+.btn:active { transform: scale(0.96); }
 
 /* ── Win overlay ── */
 .win-overlay {
@@ -306,7 +314,7 @@ body {
   background: rgba(10,15,30,0.92);
   border: 1px solid rgba(255,255,255,0.09);
   border-radius: 28px;
-  padding: 44px 52px;
+  padding: 40px 48px;
   text-align: center;
   transform: scale(0.82) translateY(24px);
   transition: transform 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -320,9 +328,9 @@ body {
 }
 
 .win-emoji {
-  font-size: 54px;
+  font-size: 48px;
   display: block;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   animation: emoji-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
 }
 
@@ -332,64 +340,98 @@ body {
 }
 
 .win-title {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 700;
   color: #e2e8f0;
   letter-spacing: -0.3px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .win-caption {
   font-size: 13px;
   color: #334155;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
-.win-stats {
-  display: flex;
-  gap: 36px;
-  justify-content: center;
-  margin-bottom: 24px;
+/* Mini grid preview in win overlay */
+.win-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 18px);
+  gap: 3px;
+  margin: 0 auto 8px;
+  width: fit-content;
 }
 
-.win-stat-value {
-  font-size: 34px;
-  font-weight: 700;
-  color: #60a5fa;
-  line-height: 1;
+.win-grid-cell {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.win-grid-cell.clicked {
+  background: #3b82f6;
+  border-color: rgba(147,197,253,0.3);
+  box-shadow: 0 0 6px rgba(59,130,246,0.45);
+}
+
+.win-moves-line {
+  font-size: 13px;
+  color: #475569;
+  margin-bottom: 22px;
   font-variant-numeric: tabular-nums;
 }
 
-.win-stat-label {
-  font-size: 10px;
-  color: #334155;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  margin-top: 4px;
-}
-
-.win-new-best {
+/* Streak badge in win overlay */
+.win-streak {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  color: #fbbf24;
-  background: rgba(251,191,36,0.08);
-  border: 1px solid rgba(251,191,36,0.18);
+  color: #fb923c;
+  background: rgba(251,146,60,0.08);
+  border: 1px solid rgba(251,146,60,0.18);
   border-radius: 8px;
   padding: 4px 12px;
-  margin-bottom: 24px;
-  letter-spacing: 0.3px;
+  margin-bottom: 22px;
+  letter-spacing: 0.2px;
 }
+
+.win-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.btn-share {
+  padding: 12px 22px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.06);
+  color: #94a3b8;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  letter-spacing: 0.1px;
+}
+
+.btn-share:hover {
+  background: rgba(255,255,255,0.1);
+  color: #e2e8f0;
+}
+
+.btn-share:active { transform: scale(0.96); }
 
 .btn-play-again {
   background: linear-gradient(135deg, #3b82f6, #6366f1);
   color: white;
   border: none;
-  padding: 13px 36px;
+  padding: 12px 28px;
   border-radius: 14px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -403,6 +445,31 @@ body {
 }
 
 .btn-play-again:active { transform: scale(0.97); }
+
+/* ── Toast ── */
+.toast {
+  position: fixed;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  background: #1e293b;
+  border: 1px solid rgba(255,255,255,0.09);
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 9px 22px;
+  border-radius: 12px;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+  z-index: 200;
+  white-space: nowrap;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
 
 /* ── Confetti particles ── */
 .particle {
@@ -433,7 +500,11 @@ body {
     <div class="subtitle">Light them all</div>
   </div>
 
-  <div class="puzzle-label" id="puzzle-label"></div>
+  <div class="date-nav">
+    <button class="nav-btn" id="btn-prev" onclick="goDate(-1)" aria-label="Previous puzzle">‹</button>
+    <div class="puzzle-label" id="puzzle-label"></div>
+    <button class="nav-btn" id="btn-next" onclick="goDate(1)" aria-label="Next puzzle">›</button>
+  </div>
 
   <div class="stats">
     <div class="stat">
@@ -442,21 +513,15 @@ body {
     </div>
     <div class="stat-divider"></div>
     <div class="stat">
-      <div class="stat-value" id="best-val">—</div>
-      <div class="stat-label">Best</div>
+      <div class="stat-value" id="streak-val">—</div>
+      <div class="stat-label">Streak</div>
     </div>
   </div>
 
   <div class="grid" id="grid" role="grid" aria-label="GlowGrid puzzle"></div>
 
   <div class="actions">
-    <button class="btn" id="btn-hint" onclick="hint()">
-      ✦ Hint
-      <span class="btn-badge" id="hint-count">3</span>
-    </button>
-    <button class="btn" onclick="resetPuzzle()">
-      ↺ Reset
-    </button>
+    <button class="btn" onclick="resetPuzzle()">↺ Reset</button>
   </div>
 
 </div>
@@ -467,29 +532,29 @@ body {
     <span class="win-emoji">✨</span>
     <div class="win-title">All lit up!</div>
     <div class="win-caption" id="win-caption">Well played.</div>
-    <div class="win-stats">
-      <div class="win-stat">
-        <div class="win-stat-value" id="win-moves">0</div>
-        <div class="win-stat-label">Moves</div>
-      </div>
-      <div class="win-stat">
-        <div class="win-stat-value" id="win-best">—</div>
-        <div class="win-stat-label">Best</div>
-      </div>
+    <div class="win-grid" id="win-grid"></div>
+    <div class="win-moves-line" id="win-moves-line"></div>
+    <div class="win-streak" id="win-streak" style="display:none"></div>
+    <div class="win-actions">
+      <button class="btn-share" onclick="shareResult()">⎘ Share</button>
+      <button class="btn-play-again" onclick="resetPuzzle()">↺ Try Again</button>
     </div>
-    <div class="win-new-best" id="win-new-best" style="display:none">★ New best!</div>
-    <button class="btn-play-again" onclick="resetPuzzle()">Try Again</button>
   </div>
 </div>
 
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
 <script>
 const SIZE = 5;
+const MAX_DAYS_BACK = 60;
 
 let state = [];
 let moves = 0;
-let hintsLeft = 3;
-let cells = []; // live DOM references
-let dailyPuzzleState = null; // saved for Reset
+let netClicks = new Array(SIZE * SIZE).fill(0); // net parity of clicks per cell
+let cells = [];
+let puzzleState = null; // initial state for current puzzle (for Reset)
+let currentDateKey = ''; // "YYYY-M-D"
 
 // ── Seeded PRNG (mulberry32) ─────────────────────────────────
 
@@ -502,20 +567,65 @@ function mulberry32(seed) {
   };
 }
 
-function todaySeed() {
-  const d = new Date();
-  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-}
-
-function puzzleNumber() {
-  const epoch = new Date('2025-01-01T00:00:00');
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return Math.max(1, Math.floor((today - epoch) / 86400000) + 1);
-}
+// ── Date helpers ─────────────────────────────────────────────
 
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+}
+
+function dateFromKey(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function seedFromKey(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return y * 10000 + m * 100 + d;
+}
+
+function puzzleNumberFromKey(key) {
+  const epoch = new Date('2025-01-01T00:00:00');
+  const date = dateFromKey(key);
+  return Math.max(1, Math.floor((date - epoch) / 86400000) + 1);
+}
+
+function formatDateLabel(key) {
+  if (key === todayKey()) return 'Today';
+  return dateFromKey(key).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function offsetDate(key, delta) {
+  const d = dateFromKey(key);
+  d.setDate(d.getDate() + delta);
+  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+}
+
+// ── Streak ───────────────────────────────────────────────────
+
+function getStreak() {
+  return parseInt(localStorage.getItem('glowgrid-streak') || '0');
+}
+
+function tryUpdateStreak() {
+  if (currentDateKey !== todayKey()) return false;
+
+  const lastDate = localStorage.getItem('glowgrid-last-streak-date');
+  const today = todayKey();
+  if (lastDate === today) return false; // already counted today
+
+  const streak = getStreak();
+  const yesterday = offsetDate(today, -1);
+  const newStreak = lastDate === yesterday ? streak + 1 : 1;
+
+  localStorage.setItem('glowgrid-streak', newStreak);
+  localStorage.setItem('glowgrid-last-streak-date', today);
+  return true;
+}
+
+function refreshStreakDisplay() {
+  const s = getStreak();
+  document.getElementById('streak-val').textContent = s > 0 ? s : '—';
 }
 
 // ── Patterns ────────────────────────────────────────────────
@@ -543,8 +653,6 @@ function crossPattern(i) {
 function affectedCells(i) {
   return state[i] ? plusPattern(i) : crossPattern(i);
 }
-
-// ── State helpers ────────────────────────────────────────────
 
 function applyToggle(i) {
   affectedCells(i).forEach(j => { state[j] = !state[j]; });
@@ -581,8 +689,6 @@ function syncCells() {
     cell.setAttribute('aria-pressed', state[i] ? 'true' : 'false');
   });
   document.getElementById('moves-val').textContent = moves;
-  document.getElementById('hint-count').textContent = hintsLeft;
-  document.getElementById('btn-hint').disabled = hintsLeft === 0;
 }
 
 function previewCells(i) {
@@ -591,12 +697,13 @@ function previewCells(i) {
 }
 
 function clearPreview() {
-  cells.forEach(c => c.classList.remove('preview', 'hint-flash'));
+  cells.forEach(c => c.classList.remove('preview'));
 }
 
 // ── Interaction ──────────────────────────────────────────────
 
 function handleClick(i, cell) {
+  netClicks[i]++;
   applyToggle(i);
   moves++;
 
@@ -609,25 +716,6 @@ function handleClick(i, cell) {
   syncCells();
   previewCells(i);
   checkWin();
-}
-
-function hint() {
-  if (hintsLeft <= 0) return;
-
-  let best = 0, bestScore = -1;
-  for (let i = 0; i < state.length; i++) {
-    const score = affectedCells(i).filter(j => !state[j]).length;
-    if (score > bestScore) { bestScore = score; best = i; }
-  }
-
-  hintsLeft--;
-  clearPreview();
-  cells[best].classList.add('hint-flash');
-  cells[best].addEventListener('animationend', () => {
-    cells[best].classList.remove('hint-flash');
-  }, { once: true });
-
-  syncCells();
 }
 
 function handleKey(e, i) {
@@ -645,16 +733,16 @@ function handleKey(e, i) {
   if (next >= 0) { e.preventDefault(); cells[next].focus(); }
 }
 
-// ── Daily puzzle generation ───────────────────────────────────
-// Generated by shuffling from the solved state (all ON) — always solvable.
+// ── Puzzle generation ─────────────────────────────────────────
+// Start from all-ON and shuffle — guarantees solvability.
 
-function generateDailyPuzzle() {
-  const rng = mulberry32(todaySeed());
+function generatePuzzleForKey(key) {
+  const rng = mulberry32(seedFromKey(key));
   state = Array(SIZE * SIZE).fill(true);
   for (let k = 0; k < 10; k++) {
     applyToggle(Math.floor(rng() * SIZE * SIZE));
   }
-  dailyPuzzleState = state.slice();
+  puzzleState = state.slice();
 }
 
 // ── Win ──────────────────────────────────────────────────────
@@ -662,20 +750,68 @@ function generateDailyPuzzle() {
 function checkWin() {
   if (!state.every(v => v)) return;
 
-  const bestKey = 'glowgrid-best-' + todayKey();
-  const prev = parseInt(localStorage.getItem(bestKey) || '0');
-  const isNew = !prev || moves < prev;
-  if (isNew) localStorage.setItem(bestKey, moves);
+  const streakUpdated = tryUpdateStreak();
+  refreshStreakDisplay();
 
-  document.getElementById('win-moves').textContent = moves;
-  document.getElementById('win-best').textContent = isNew ? moves : prev;
+  // Mini grid preview
+  const winGrid = document.getElementById('win-grid');
+  winGrid.innerHTML = '';
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    const c = document.createElement('div');
+    c.className = 'win-grid-cell' + (netClicks[i] % 2 === 1 ? ' clicked' : '');
+    winGrid.appendChild(c);
+  }
+
+  document.getElementById('win-moves-line').textContent =
+    `Solved in ${moves} move${moves === 1 ? '' : 's'}`;
   document.getElementById('win-caption').textContent =
     moves <= 8 ? 'Flawless.' : moves <= 14 ? 'Well played.' : 'Nice one!';
-  document.getElementById('win-new-best').style.display = isNew ? 'inline-flex' : 'none';
+
+  const streakEl = document.getElementById('win-streak');
+  if (streakUpdated) {
+    const s = getStreak();
+    streakEl.textContent = s > 1 ? `🔥 ${s} day streak!` : '🔥 Streak started!';
+    streakEl.style.display = 'inline-flex';
+  } else {
+    streakEl.style.display = 'none';
+  }
 
   document.getElementById('win-overlay').classList.add('visible');
-  refreshBestDisplay();
   spawnParticles();
+}
+
+// ── Share ─────────────────────────────────────────────────────
+
+function shareResult() {
+  const num = puzzleNumberFromKey(currentDateKey);
+  const dateStr = formatDateLabel(currentDateKey);
+  const rows = [];
+  for (let r = 0; r < SIZE; r++) {
+    let row = '';
+    for (let c = 0; c < SIZE; c++) {
+      row += netClicks[r * SIZE + c] % 2 === 1 ? '🟦' : '⬛';
+    }
+    rows.push(row);
+  }
+  const streak = getStreak();
+  const streakSuffix = currentDateKey === todayKey() && streak > 1 ? ` 🔥${streak}` : '';
+  const text = [
+    `GlowGrid #${num} · ${dateStr} ✨`,
+    ...rows,
+    `Solved in ${moves} move${moves === 1 ? '' : 's'}${streakSuffix}`,
+  ].join('\n');
+
+  navigator.clipboard.writeText(text)
+    .then(() => showToast('Copied to clipboard!'))
+    .catch(() => showToast('Copy failed — try again'));
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('show'), 2200);
 }
 
 // ── Particles ────────────────────────────────────────────────
@@ -705,27 +841,48 @@ function spawnParticles() {
   }
 }
 
-// ── Reset & init ─────────────────────────────────────────────
+// ── Navigation & reset ────────────────────────────────────────
+
+function goDate(delta) {
+  const candidate = offsetDate(currentDateKey, delta);
+  const today = todayKey();
+  const minDate = offsetDate(today, -MAX_DAYS_BACK);
+
+  if (candidate > today) return;
+  if (candidate < minDate) return;
+
+  currentDateKey = candidate;
+  loadCurrentPuzzle();
+}
 
 function resetPuzzle() {
   document.getElementById('win-overlay').classList.remove('visible');
-  state = dailyPuzzleState.slice();
+  state = puzzleState.slice();
   moves = 0;
-  hintsLeft = 3;
+  netClicks = new Array(SIZE * SIZE).fill(0);
   buildGrid();
 }
 
-function refreshBestDisplay() {
-  const best = localStorage.getItem('glowgrid-best-' + todayKey());
-  document.getElementById('best-val').textContent = best || '—';
+function loadCurrentPuzzle() {
+  generatePuzzleForKey(currentDateKey);
+
+  const num = puzzleNumberFromKey(currentDateKey);
+  const label = formatDateLabel(currentDateKey);
+  document.getElementById('puzzle-label').textContent = `#${num} · ${label}`;
+
+  const today = todayKey();
+  const minDate = offsetDate(today, -MAX_DAYS_BACK);
+  document.getElementById('btn-prev').disabled = currentDateKey <= minDate;
+  document.getElementById('btn-next').disabled = currentDateKey === today;
+
+  resetPuzzle();
+  refreshStreakDisplay();
 }
 
 // ── Init ─────────────────────────────────────────────────────
 
-generateDailyPuzzle();
-document.getElementById('puzzle-label').textContent = `Puzzle #${puzzleNumber()}`;
-resetPuzzle();
-refreshBestDisplay();
+currentDateKey = todayKey();
+loadCurrentPuzzle();
 </script>
 
 </body>
