@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<!-- saved from url=(0060)file:///Users/erwannrobin/Sources/erwann/glowgrid/game5.html -->
-<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>GlowGrid</title>
 
 <style>
@@ -122,34 +122,13 @@ body {
   background: rgba(255,255,255,0.06);
 }
 
-/* ── Difficulty selector ── */
-.difficulty {
-  display: flex;
-  gap: 5px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 12px;
-  padding: 4px;
-}
-
-.diff-btn {
-  padding: 5px 16px;
-  border-radius: 8px;
-  border: none;
-  background: transparent;
-  color: #334155;
+/* ── Puzzle label ── */
+.puzzle-label {
   font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.18s ease;
-  letter-spacing: 0.2px;
-}
-
-.diff-btn:hover { color: #64748b; }
-
-.diff-btn.active {
-  background: rgba(255,255,255,0.08);
-  color: #e2e8f0;
+  color: #334155;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  text-align: center;
 }
 
 /* ── Grid ── */
@@ -454,6 +433,8 @@ body {
     <div class="subtitle">Light them all</div>
   </div>
 
+  <div class="puzzle-label" id="puzzle-label"></div>
+
   <div class="stats">
     <div class="stat">
       <div class="stat-value" id="moves-val">0</div>
@@ -466,24 +447,15 @@ body {
     </div>
   </div>
 
-  <div class="difficulty" role="group" aria-label="Difficulty">
-    <button class="diff-btn" data-diff="easy">Easy</button>
-    <button class="diff-btn active" data-diff="medium">Medium</button>
-    <button class="diff-btn" data-diff="hard">Hard</button>
-  </div>
-
-  <div class="grid" id="grid" role="grid" aria-label="GlowGrid puzzle"><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 0;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 1;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 2;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 3;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 4;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 5;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 6;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 7;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 8;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 9;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 10;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 11;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 12;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 13;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 14;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 15;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 16;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 17;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 18;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 19;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 20;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 21;"></div><div class="cell" role="gridcell" tabindex="0" aria-pressed="false" style="--idx: 22;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 23;"></div><div class="cell on" role="gridcell" tabindex="0" aria-pressed="true" style="--idx: 24;"></div></div>
+  <div class="grid" id="grid" role="grid" aria-label="GlowGrid puzzle"></div>
 
   <div class="actions">
-    <button class="btn" id="btn-undo" onclick="undo()" disabled="">
-      ↩ Undo
-    </button>
     <button class="btn" id="btn-hint" onclick="hint()">
       ✦ Hint
       <span class="btn-badge" id="hint-count">3</span>
     </button>
-    <button class="btn" onclick="newGame()">
-      ↺ New
+    <button class="btn" onclick="resetPuzzle()">
+      ↺ Reset
     </button>
   </div>
 
@@ -506,40 +478,65 @@ body {
       </div>
     </div>
     <div class="win-new-best" id="win-new-best" style="display:none">★ New best!</div>
-    <button class="btn-play-again" onclick="newGame()">Play Again</button>
+    <button class="btn-play-again" onclick="resetPuzzle()">Try Again</button>
   </div>
 </div>
 
 <script>
 const SIZE = 5;
-const DIFF_STEPS = { easy: 6, medium: 10, hard: 16 };
 
 let state = [];
 let moves = 0;
 let hintsLeft = 3;
-let history = []; // stack of state snapshots (before each move)
-let currentDiff = 'medium';
 let cells = []; // live DOM references
+let dailyPuzzleState = null; // saved for Reset
+
+// ── Seeded PRNG (mulberry32) ─────────────────────────────────
+
+function mulberry32(seed) {
+  return () => {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function todaySeed() {
+  const d = new Date();
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+}
+
+function puzzleNumber() {
+  const epoch = new Date('2025-01-01T00:00:00');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.max(1, Math.floor((today - epoch) / 86400000) + 1);
+}
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+}
 
 // ── Patterns ────────────────────────────────────────────────
 
 function plusPattern(i) {
   const x = i % SIZE, y = Math.floor(i / SIZE);
   const r = [i];
-  if (x > 0)          r.push(i - 1);
-  if (x < SIZE - 1)   r.push(i + 1);
-  if (y > 0)          r.push(i - SIZE);
-  if (y < SIZE - 1)   r.push(i + SIZE);
+  if (x > 0)        r.push(i - 1);
+  if (x < SIZE - 1) r.push(i + 1);
+  if (y > 0)        r.push(i - SIZE);
+  if (y < SIZE - 1) r.push(i + SIZE);
   return r;
 }
 
 function crossPattern(i) {
   const x = i % SIZE, y = Math.floor(i / SIZE);
   const r = [i];
-  if (x > 0 && y > 0)             r.push(i - SIZE - 1);
-  if (x < SIZE-1 && y > 0)        r.push(i - SIZE + 1);
-  if (x > 0 && y < SIZE-1)        r.push(i + SIZE - 1);
-  if (x < SIZE-1 && y < SIZE-1)   r.push(i + SIZE + 1);
+  if (x > 0 && y > 0)           r.push(i - SIZE - 1);
+  if (x < SIZE-1 && y > 0)      r.push(i - SIZE + 1);
+  if (x > 0 && y < SIZE-1)      r.push(i + SIZE - 1);
+  if (x < SIZE-1 && y < SIZE-1) r.push(i + SIZE + 1);
   return r;
 }
 
@@ -551,10 +548,6 @@ function affectedCells(i) {
 
 function applyToggle(i) {
   affectedCells(i).forEach(j => { state[j] = !state[j]; });
-}
-
-function snapshotState() {
-  return state.slice();
 }
 
 // ── Rendering ────────────────────────────────────────────────
@@ -588,7 +581,6 @@ function syncCells() {
     cell.setAttribute('aria-pressed', state[i] ? 'true' : 'false');
   });
   document.getElementById('moves-val').textContent = moves;
-  document.getElementById('btn-undo').disabled = history.length === 0;
   document.getElementById('hint-count').textContent = hintsLeft;
   document.getElementById('btn-hint').disabled = hintsLeft === 0;
 }
@@ -605,13 +597,9 @@ function clearPreview() {
 // ── Interaction ──────────────────────────────────────────────
 
 function handleClick(i, cell) {
-  history.push(snapshotState());
-  if (history.length > 60) history.shift();
-
   applyToggle(i);
   moves++;
 
-  // ripple effect
   const ripple = document.createElement('div');
   ripple.className = 'ripple';
   cell.appendChild(ripple);
@@ -619,23 +607,13 @@ function handleClick(i, cell) {
 
   clearPreview();
   syncCells();
-  // re-attach hover preview after class reset
   previewCells(i);
   checkWin();
-}
-
-function undo() {
-  if (!history.length) return;
-  state = history.pop();
-  if (moves > 0) moves--;
-  clearPreview();
-  syncCells();
 }
 
 function hint() {
   if (hintsLeft <= 0) return;
 
-  // greedy: find the cell that would turn on the most currently-off cells
   let best = 0, bestScore = -1;
   for (let i = 0; i < state.length; i++) {
     const score = affectedCells(i).filter(j => !state[j]).length;
@@ -667,17 +645,16 @@ function handleKey(e, i) {
   if (next >= 0) { e.preventDefault(); cells[next].focus(); }
 }
 
-// ── Puzzle generation ────────────────────────────────────────
+// ── Daily puzzle generation ───────────────────────────────────
+// Generated by shuffling from the solved state (all ON) — always solvable.
 
-function generatePuzzle() {
+function generateDailyPuzzle() {
+  const rng = mulberry32(todaySeed());
   state = Array(SIZE * SIZE).fill(true);
-  const steps = DIFF_STEPS[currentDiff];
-  for (let k = 0; k < steps; k++) {
-    applyToggle(Math.floor(Math.random() * state.length));
+  for (let k = 0; k < 10; k++) {
+    applyToggle(Math.floor(rng() * SIZE * SIZE));
   }
-  moves = 0;
-  history = [];
-  hintsLeft = 3;
+  dailyPuzzleState = state.slice();
 }
 
 // ── Win ──────────────────────────────────────────────────────
@@ -685,17 +662,15 @@ function generatePuzzle() {
 function checkWin() {
   if (!state.every(v => v)) return;
 
-  const bestKey = 'glowgrid-best-' + currentDiff;
+  const bestKey = 'glowgrid-best-' + todayKey();
   const prev = parseInt(localStorage.getItem(bestKey) || '0');
   const isNew = !prev || moves < prev;
   if (isNew) localStorage.setItem(bestKey, moves);
 
-  const displayBest = isNew ? moves : prev;
-
   document.getElementById('win-moves').textContent = moves;
-  document.getElementById('win-best').textContent = displayBest;
+  document.getElementById('win-best').textContent = isNew ? moves : prev;
   document.getElementById('win-caption').textContent =
-    moves <= 5 ? 'Flawless.' : moves <= 10 ? 'Well played.' : 'Nice one!';
+    moves <= 8 ? 'Flawless.' : moves <= 14 ? 'Well played.' : 'Nice one!';
   document.getElementById('win-new-best').style.display = isNew ? 'inline-flex' : 'none';
 
   document.getElementById('win-overlay').classList.add('visible');
@@ -730,35 +705,28 @@ function spawnParticles() {
   }
 }
 
-// ── New game ─────────────────────────────────────────────────
+// ── Reset & init ─────────────────────────────────────────────
 
-function newGame() {
+function resetPuzzle() {
   document.getElementById('win-overlay').classList.remove('visible');
-  generatePuzzle();
+  state = dailyPuzzleState.slice();
+  moves = 0;
+  hintsLeft = 3;
   buildGrid();
-  refreshBestDisplay();
 }
 
 function refreshBestDisplay() {
-  const best = localStorage.getItem('glowgrid-best-' + currentDiff);
+  const best = localStorage.getItem('glowgrid-best-' + todayKey());
   document.getElementById('best-val').textContent = best || '—';
 }
 
-// ── Difficulty buttons ───────────────────────────────────────
-
-document.querySelectorAll('.diff-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelector('.diff-btn.active').classList.remove('active');
-    btn.classList.add('active');
-    currentDiff = btn.dataset.diff;
-    newGame();
-  });
-});
-
 // ── Init ─────────────────────────────────────────────────────
-newGame();
+
+generateDailyPuzzle();
+document.getElementById('puzzle-label').textContent = `Puzzle #${puzzleNumber()}`;
+resetPuzzle();
+refreshBestDisplay();
 </script>
 
-
-
-</body></html>
+</body>
+</html>
