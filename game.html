@@ -2,7 +2,8 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<title>GlowGrid Proto</title>
+<title>GlowGrid 5x5</title>
+
 <style>
   body {
     background: #0f172a;
@@ -16,26 +17,30 @@
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(6, 60px);
-    gap: 10px;
+    grid-template-columns: repeat(5, 70px);
+    gap: 12px;
   }
 
   .cell {
-    width: 60px;
-    height: 60px;
-    border-radius: 16px;
+    width: 70px;
+    height: 70px;
+    border-radius: 18px;
     background: rgba(255,255,255,0.05);
     cursor: pointer;
     transition: all 0.2s ease;
   }
 
   .on {
-    background: radial-gradient(circle at 30% 30%, #60a5fa, #2563eb);
-    box-shadow: 0 0 20px #60a5fa, inset 0 0 10px white;
+    background: radial-gradient(circle at 30% 30%, #67e8f9, #06b6d4);
+    box-shadow: 0 0 20px #22d3ee, inset 0 0 12px white;
   }
 
-  .hint {
-    outline: 3px solid #facc15;
+  .previewPlus {
+    outline: 3px solid #22c55e;
+  }
+
+  .previewCross {
+    outline: 3px solid #f97316;
   }
 
   button {
@@ -50,7 +55,7 @@
 
 <body>
 
-<h2>GlowGrid Proto</h2>
+<h2>GlowGrid 5×5</h2>
 <div id="moves">Moves: 0</div>
 
 <div class="grid" id="grid"></div>
@@ -61,30 +66,38 @@
 </div>
 
 <script>
-const size = 6;
+const size = 5;
 let moves = 0;
 
-// état des cases
+// état
 let state = Array(size * size).fill(false);
 
-// liens (chaque case a 2 liens fixes pour prototype)
-let links = generateLinks();
+// voisins +
+function plusPattern(i) {
+  const x = i % size;
+  const y = Math.floor(i / size);
+  const res = [i];
 
-// initialisation aléatoire
-function randomize() {
-  for (let i = 0; i < state.length; i++) {
-    state[i] = Math.random() > 0.5;
-  }
+  if (x > 0) res.push(i - 1);
+  if (x < size - 1) res.push(i + 1);
+  if (y > 0) res.push(i - size);
+  if (y < size - 1) res.push(i + size);
+
+  return res;
 }
 
-function generateLinks() {
-  let l = [];
-  for (let i = 0; i < size * size; i++) {
-    let a = Math.floor(Math.random() * state.length);
-    let b = Math.floor(Math.random() * state.length);
-    l[i] = [a, b];
-  }
-  return l;
+// voisins X (diagonales)
+function crossPattern(i) {
+  const x = i % size;
+  const y = Math.floor(i / size);
+  const res = [i];
+
+  if (x > 0 && y > 0) res.push(i - size - 1);
+  if (x < size - 1 && y > 0) res.push(i - size + 1);
+  if (x > 0 && y < size - 1) res.push(i + size - 1);
+  if (x < size - 1 && y < size - 1) res.push(i + size + 1);
+
+  return res;
 }
 
 function toggle(i) {
@@ -92,8 +105,12 @@ function toggle(i) {
 }
 
 function clickCell(i) {
-  toggle(i);
-  links[i].forEach(j => toggle(j));
+  const wasOn = state[i];
+
+  const affected = wasOn ? plusPattern(i) : crossPattern(i);
+
+  affected.forEach(toggle);
+
   moves++;
   update();
 }
@@ -105,7 +122,13 @@ function update() {
   state.forEach((on, i) => {
     const cell = document.createElement("div");
     cell.className = "cell" + (on ? " on" : "");
+
+    // preview au hover
+    cell.onmouseenter = () => preview(i, on);
+    cell.onmouseleave = clearPreview;
+
     cell.onclick = () => clickCell(i);
+
     grid.appendChild(cell);
   });
 
@@ -114,46 +137,72 @@ function update() {
   checkWin();
 }
 
+function preview(i, isOn) {
+  clearPreview();
+
+  const pattern = isOn ? plusPattern(i) : crossPattern(i);
+  const grid = document.getElementById("grid").children;
+
+  pattern.forEach(j => {
+    grid[j].classList.add(isOn ? "previewPlus" : "previewCross");
+  });
+}
+
+function clearPreview() {
+  const cells = document.getElementById("grid").children;
+  for (let c of cells) {
+    c.classList.remove("previewPlus", "previewCross");
+  }
+}
+
 function checkWin() {
   if (state.every(v => v)) {
     setTimeout(() => alert("🎉 Tout allumé en " + moves + " coups !"), 100);
   }
 }
 
-function reset() {
+// génération simple (à améliorer ensuite)
+function generatePuzzle(steps = 8) {
+  state = Array(size * size).fill(true);
+
+  for (let k = 0; k < steps; k++) {
+    const i = Math.floor(Math.random() * state.length);
+    clickCell(i);
+  }
+
   moves = 0;
-  randomize();
+}
+
+function reset() {
+  generatePuzzle(8);
   update();
 }
 
-// HINT SIMPLE : highlight une case qui change beaucoup de choses
+// hint simple
 function hint() {
-  let bestIndex = 0;
+  let best = 0;
   let bestScore = -1;
 
   for (let i = 0; i < state.length; i++) {
-    let score = 0;
-    [i, ...links[i]].forEach(j => {
-      if (!state[j]) score++;
-    });
+    const pattern = state[i] ? plusPattern(i) : crossPattern(i);
+
+    let score = pattern.filter(j => !state[j]).length;
 
     if (score > bestScore) {
       bestScore = score;
-      bestIndex = i;
+      best = i;
     }
   }
 
   const grid = document.getElementById("grid").children;
-  grid[bestIndex].classList.add("hint");
+  grid[best].classList.add("previewPlus");
 
-  setTimeout(() => {
-    grid[bestIndex].classList.remove("hint");
-  }, 800);
+  setTimeout(clearPreview, 800);
 
-  moves++; // pénalité simple
+  moves++; // pénalité
 }
 
-randomize();
+generatePuzzle();
 update();
 </script>
 
