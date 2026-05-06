@@ -6,49 +6,103 @@
 
 <style>
   body {
-    background: #0f172a;
-    color: white;
-    font-family: sans-serif;
+    margin: 0;
+    height: 100vh;
+    background: radial-gradient(circle at 30% 20%, #1e293b, #020617);
+    font-family: -apple-system, sans-serif;
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-top: 40px;
+    justify-content: center;
+    color: white;
+  }
+
+  h2 {
+    margin-bottom: 10px;
+    opacity: 0.9;
+    letter-spacing: 1px;
+  }
+
+  #moves {
+    margin-bottom: 20px;
+    opacity: 0.6;
   }
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(5, 70px);
-    gap: 12px;
+    grid-template-columns: repeat(5, 80px);
+    gap: 14px;
   }
 
   .cell {
-    width: 70px;
-    height: 70px;
-    border-radius: 18px;
-    background: rgba(255,255,255,0.05);
+    width: 80px;
+    height: 80px;
+    border-radius: 22px;
+
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+
+    box-shadow:
+      inset 0 1px 1px rgba(255,255,255,0.15),
+      inset 0 -2px 6px rgba(0,0,0,0.5),
+      0 8px 20px rgba(0,0,0,0.4);
+
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.25s ease;
+  }
+
+  .cell:hover {
+    transform: translateY(-4px) scale(1.03);
+  }
+
+  .cell:active {
+    transform: scale(0.95);
   }
 
   .on {
-    background: radial-gradient(circle at 30% 30%, #67e8f9, #06b6d4);
-    box-shadow: 0 0 20px #22d3ee, inset 0 0 12px white;
+    background:
+      radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(34,211,238,0.6) 40%, rgba(6,182,212,0.3) 70%);
+
+    box-shadow:
+      0 0 20px rgba(34,211,238,0.8),
+      0 0 40px rgba(34,211,238,0.4),
+      inset 0 0 20px rgba(255,255,255,0.8);
   }
 
+  /* halo preview */
   .previewPlus {
-    outline: 3px solid #22c55e;
+    box-shadow:
+      0 0 15px rgba(34,197,94,0.8),
+      0 0 30px rgba(34,197,94,0.4),
+      inset 0 0 10px rgba(255,255,255,0.5);
   }
 
   .previewCross {
-    outline: 3px solid #f97316;
+    box-shadow:
+      0 0 15px rgba(249,115,22,0.8),
+      0 0 30px rgba(249,115,22,0.4),
+      inset 0 0 10px rgba(255,255,255,0.5);
   }
 
   button {
-    margin-top: 15px;
-    padding: 8px 16px;
-    border-radius: 8px;
+    margin-top: 18px;
+    padding: 10px 18px;
+    border-radius: 12px;
     border: none;
+    background: rgba(255,255,255,0.08);
+    color: white;
+    backdrop-filter: blur(10px);
     cursor: pointer;
+
+    box-shadow:
+      inset 0 1px 1px rgba(255,255,255,0.2),
+      0 6px 15px rgba(0,0,0,0.4);
+
+    transition: all 0.2s ease;
+  }
+
+  button:hover {
+    background: rgba(255,255,255,0.15);
   }
 </style>
 </head>
