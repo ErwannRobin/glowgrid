@@ -1172,21 +1172,31 @@ function generatePuzzleForKey(key) {
 // ── Audio ─────────────────────────────────────────────────────
 
 let _audioCtx = null;
+let _audioUnlocked = false;
 let soundEnabled = localStorage.getItem('gg_sound') !== 'off';
 
-// Get or create the AudioContext. On iOS, nodes scheduled on a suspended
-// context are queued and play once resume() finishes — so callers can
-// schedule audio immediately without waiting for a promise.
+// Tiny silent MP3 as data URI (< 100 bytes). Playing an <audio> element
+// switches iOS from "ambient" to "playback" audio session, which makes
+// AudioContext work even when the iPhone mute/ringer switch is on.
+const _silentAudio = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAABhkVHlZcAAAAAAAAAAAAAAAAA//tQZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//tQZB8P8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==');
+_silentAudio.setAttribute('playsinline', '');
+
 function _getCtx() {
   if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (_audioCtx.state === 'suspended') _audioCtx.resume(); // fire-and-forget
+  if (_audioCtx.state === 'suspended') _audioCtx.resume();
   return _audioCtx;
 }
 
-// Unlock on every user gesture: plays a silent buffer to wake iOS audio
-// hardware and keeps the context alive after app-backgrounding.
+// Called on every user gesture to unlock iOS audio.
+// 1) Plays silent <audio> to switch audio session to "playback"
+// 2) Creates & resumes AudioContext
+// 3) Plays silent buffer through AudioContext
 function _unlockAudio() {
   try {
+    // Silent <audio> play — switches iOS audio session category
+    if (!_audioUnlocked) {
+      _silentAudio.play().then(() => { _audioUnlocked = true; }).catch(() => {});
+    }
     const ctx = _getCtx();
     const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
     const src = ctx.createBufferSource();
