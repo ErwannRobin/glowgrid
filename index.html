@@ -290,6 +290,31 @@ body {
 
 .btn:active { transform: scale(0.96); }
 
+.btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+@keyframes hint-pulse {
+  0%, 100% { box-shadow: none; border-color: rgba(255,255,255,0.08); color: #64748b; }
+  50%       { box-shadow: 0 0 0 4px rgba(59,130,246,0.18); border-color: rgba(59,130,246,0.45); color: #60a5fa; }
+}
+
+.btn-hint.hint-ready {
+  animation: hint-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes hint-ring {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(96,165,250,0.6), inset 0 0 10px rgba(59,130,246,0.25); }
+  50%       { box-shadow: 0 0 0 5px rgba(96,165,250,0.25), inset 0 0 18px rgba(59,130,246,0.5); }
+}
+
+.cell.hint-highlight {
+  animation: hint-ring 1s ease-in-out infinite !important;
+  border-color: rgba(96,165,250,0.75) !important;
+}
+
 /* ── Win overlay ── */
 .win-overlay {
   position: fixed;
@@ -381,8 +406,15 @@ body {
 .win-moves-line {
   font-size: 13px;
   color: #475569;
-  margin-bottom: 22px;
+  margin-bottom: 8px;
   font-variant-numeric: tabular-nums;
+}
+
+.win-hints-line {
+  font-size: 12px;
+  color: #60a5fa;
+  margin-bottom: 14px;
+  font-weight: 500;
 }
 
 /* Streak badge in win overlay */
@@ -524,6 +556,7 @@ body {
 
   <div class="actions">
     <button class="btn" onclick="resetPuzzle()">↺ Reset</button>
+    <button class="btn btn-hint" id="btn-hint" onclick="requestHint()" disabled title="Available when 3 or fewer cells remain off">💡 Hint</button>
   </div>
 
 </div>
@@ -536,6 +569,7 @@ body {
     <div class="win-caption" id="win-caption">Well played.</div>
     <div class="win-grid" id="win-grid"></div>
     <div class="win-moves-line" id="win-moves-line"></div>
+    <div class="win-hints-line" id="win-hints-line" style="display:none"></div>
     <div class="win-streak" id="win-streak" style="display:none"></div>
     <div class="win-actions">
       <button class="btn-share" onclick="shareResult()">⎘ Share</button>
@@ -557,6 +591,12 @@ let clickCounts = new Array(SIZE * SIZE).fill(0); // raw click count per cell
 let cells = [];
 let puzzleState = null; // initial state for current puzzle (for Reset)
 let currentDateKey = ''; // "YYYY-M-D"
+
+let hintPath = null;      // current BFS solution path (array of cell indices)
+let hintsUsed = 0;        // hints consumed this puzzle
+let activeHintCell = -1;  // currently highlighted cell (-1 = none)
+let stuckTimer = null;    // setTimeout handle for stuck detection
+const STUCK_DELAY = 20000; // 20s idle with ≤3 cells OFF → pulse hint button
 
 // ── Seeded PRNG (mulberry32) ─────────────────────────────────
 
@@ -660,6 +700,176 @@ function applyToggle(i) {
   affectedCells(i).forEach(j => { state[j] = !state[j]; });
 }
 
+// ── Solver (bidirectional BFS) ────────────────────────────────
+
+// Precompute XOR masks from existing pattern functions (stays in sync with gameplay)
+const plusMasks  = Array.from({length: SIZE * SIZE}, (_, i) => {
+  let m = 0; plusPattern(i).forEach(j => { m |= (1 << j); }); return m >>> 0;
+});
+const crossMasks = Array.from({length: SIZE * SIZE}, (_, i) => {
+  let m = 0; crossPattern(i).forEach(j => { m |= (1 << j); }); return m >>> 0;
+});
+
+function stateToBits(st) {
+  let bits = 0;
+  for (let i = 0; i < SIZE * SIZE; i++) if (st[i]) bits |= (1 << i);
+  return bits >>> 0;
+}
+
+// Forward move: apply the same pattern logic as the actual game
+function applyMoveToBits(bits, move) {
+  return (bits ^ (bits & (1 << move) ? plusMasks[move] : crossMasks[move])) >>> 0;
+}
+
+// Reverse move: given result state `bits`, what state transitions TO `bits` via `move`?
+// Since clicking always flips the cell, if bits[move]=1 then before click it was 0 (used cross);
+// if bits[move]=0 then before click it was 1 (used plus).
+function applyRevMoveToBits(bits, move) {
+  return (bits ^ (bits & (1 << move) ? crossMasks[move] : plusMasks[move])) >>> 0;
+}
+
+function onBitCount(bits) {
+  let n = 0;
+  for (let i = 0; i < SIZE * SIZE; i++) if (bits & (1 << i)) n++;
+  return n;
+}
+
+function bidirBFSSolve(stArr) {
+  const GOAL = ((1 << (SIZE * SIZE)) - 1) >>> 0;
+  const initBits = stateToBits(stArr);
+  if (initBits === GOAL) return [];
+
+  const MAX_TOTAL = 300000;
+  const deadline = performance.now() + 400;
+
+  // Forward: state → [parentBits, move] | null
+  const fPrev = new Map();
+  fPrev.set(initBits, null);
+  let fFrontier = [initBits];
+
+  // Backward: state → [nextBits, move] | null (where clicking move from state → nextBits)
+  const bPrev = new Map();
+  bPrev.set(GOAL, null);
+  let bFrontier = [GOAL];
+
+  function reconstruct(meeting) {
+    const path = [];
+    let cur = meeting;
+    while (fPrev.get(cur) !== null) {
+      const [p, m] = fPrev.get(cur);
+      path.unshift(m);
+      cur = p;
+    }
+    cur = meeting;
+    while (bPrev.get(cur) !== null) {
+      const [next, m] = bPrev.get(cur);
+      path.push(m);
+      cur = next;
+    }
+    return path;
+  }
+
+  while (fFrontier.length > 0 || bFrontier.length > 0) {
+    if (fPrev.size + bPrev.size >= MAX_TOTAL || performance.now() > deadline) break;
+
+    // Expand forward one level
+    const nextF = [];
+    for (const bits of fFrontier) {
+      for (let move = 0; move < SIZE * SIZE; move++) {
+        const nb = applyMoveToBits(bits, move);
+        if (!fPrev.has(nb)) {
+          fPrev.set(nb, [bits, move]);
+          if (bPrev.has(nb)) return reconstruct(nb);
+          nextF.push(nb);
+        }
+      }
+    }
+    fFrontier = nextF;
+
+    if (fPrev.size + bPrev.size >= MAX_TOTAL || performance.now() > deadline) break;
+
+    // Expand backward one level
+    const nextB = [];
+    for (const bits of bFrontier) {
+      for (let move = 0; move < SIZE * SIZE; move++) {
+        const nb = applyRevMoveToBits(bits, move);
+        if (!bPrev.has(nb)) {
+          bPrev.set(nb, [bits, move]);
+          if (fPrev.has(nb)) return reconstruct(nb);
+          nextB.push(nb);
+        }
+      }
+    }
+    bFrontier = nextB;
+  }
+  return null;
+}
+
+// Greedy fallback: pick the move that maximises ON cells
+function greedyHint(stArr) {
+  const bits = stateToBits(stArr);
+  let bestMove = 0, bestOn = -1;
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    const on = onBitCount(applyMoveToBits(bits, i));
+    if (on > bestOn) { bestOn = on; bestMove = i; }
+  }
+  return [bestMove];
+}
+
+// ── Hint management ───────────────────────────────────────────
+
+function clearHintHighlight() {
+  if (activeHintCell >= 0 && cells[activeHintCell]) {
+    cells[activeHintCell].classList.remove('hint-highlight');
+  }
+  activeHintCell = -1;
+}
+
+function resetHintState() {
+  clearTimeout(stuckTimer);
+  stuckTimer = null;
+  clearHintHighlight();
+  hintPath = null;
+}
+
+function checkStuck() {
+  clearTimeout(stuckTimer);
+  const btn = document.getElementById('btn-hint');
+  btn.classList.remove('hint-ready');
+
+  if (state.every(v => v)) { btn.disabled = true; return; }
+
+  const off = state.filter(v => !v).length;
+  if (off > 0 && off <= 3) {
+    btn.disabled = false;
+    stuckTimer = setTimeout(() => btn.classList.add('hint-ready'), STUCK_DELAY);
+  } else {
+    btn.disabled = true;
+  }
+}
+
+function requestHint() {
+  if (activeHintCell !== -1) return; // hint already showing — idempotent
+  if (state.every(v => v)) return;   // already won
+
+  const path = bidirBFSSolve(state) || greedyHint(state);
+  if (!path || path.length === 0) {
+    showToast('No hint found — try a different move');
+    return;
+  }
+
+  hintPath = path;
+  activeHintCell = hintPath[0];
+  cells[activeHintCell].classList.add('hint-highlight');
+  hintsUsed++;
+
+  // Remove pulse animation once hint is visible
+  btn_hint().classList.remove('hint-ready');
+  btn_hint().disabled = true; // re-enables on next move via checkStuck
+}
+
+function btn_hint() { return document.getElementById('btn-hint'); }
+
 // ── Rendering ────────────────────────────────────────────────
 
 function buildGrid() {
@@ -705,6 +915,8 @@ function clearPreview() {
 // ── Interaction ──────────────────────────────────────────────
 
 function handleClick(i, cell) {
+  clearHintHighlight();  // clear highlighted hint on any click
+  hintPath = null;       // invalidate stale path (state is about to change)
   clickCounts[i]++;
   applyToggle(i);
   moves++;
@@ -716,6 +928,7 @@ function handleClick(i, cell) {
 
   clearPreview();
   syncCells();
+  checkStuck();
   previewCells(i);
   checkWin();
 }
@@ -751,6 +964,10 @@ function generatePuzzleForKey(key) {
 
 function checkWin() {
   if (!state.every(v => v)) return;
+
+  // Clear any active hint and timer
+  resetHintState();
+  btn_hint().disabled = true;
 
   const streakUpdated = tryUpdateStreak();
   refreshStreakDisplay();
@@ -790,6 +1007,14 @@ function checkWin() {
   document.getElementById('win-caption').textContent =
     moves <= 8 ? 'Flawless.' : moves <= 14 ? 'Well played.' : 'Nice one!';
 
+  const winHintsLine = document.getElementById('win-hints-line');
+  if (hintsUsed > 0) {
+    winHintsLine.textContent = `💡 ${hintsUsed} hint${hintsUsed > 1 ? 's' : ''} used`;
+    winHintsLine.style.display = '';
+  } else {
+    winHintsLine.style.display = 'none';
+  }
+
   const streakEl = document.getElementById('win-streak');
   if (streakUpdated) {
     const s = getStreak();
@@ -819,10 +1044,11 @@ function shareResult() {
   }
   const streak = getStreak();
   const streakSuffix = currentDateKey === todayKey() && streak > 1 ? ` 🔥${streak}` : '';
+  const hintSuffix = hintsUsed > 0 ? ` (${hintsUsed} hint${hintsUsed > 1 ? 's' : ''})` : '';
   const text = [
     `GlowGrid #${num} · ${dateStr} ✨`,
     ...rows,
-    `Solved in ${moves} move${moves === 1 ? '' : 's'}${streakSuffix}`,
+    `Solved in ${moves} move${moves === 1 ? '' : 's'}${streakSuffix}${hintSuffix}`,
   ].join('\n');
 
   navigator.clipboard.writeText(text)
@@ -884,7 +1110,10 @@ function resetPuzzle() {
   state = puzzleState.slice();
   moves = 0;
   clickCounts = new Array(SIZE * SIZE).fill(0);
+  hintsUsed = 0;
+  resetHintState();
   buildGrid();
+  checkStuck();
 }
 
 function loadCurrentPuzzle() {
