@@ -474,19 +474,20 @@ body {
 .btn-share {
   padding: 12px 22px;
   border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.06);
-  color: #94a3b8;
-  font-size: 14px;
+  border: 1px solid rgba(59,130,246,0.35);
+  background: rgba(59,130,246,0.15);
+  color: #93c5fd;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.18s ease;
-  letter-spacing: 0.1px;
+  letter-spacing: 0.2px;
 }
 
 .btn-share:hover {
-  background: rgba(255,255,255,0.1);
-  color: #e2e8f0;
+  background: rgba(59,130,246,0.28);
+  color: #bfdbfe;
+  border-color: rgba(59,130,246,0.5);
 }
 
 .btn-share:active { transform: scale(0.96); }
@@ -694,7 +695,7 @@ body {
     <div class="win-hints-line" id="win-hints-line" style="display:none"></div>
     <div class="win-streak" id="win-streak" style="display:none"></div>
     <div class="win-actions">
-      <button class="btn-share" id="btn-share" onclick="shareResult()">⎘ Share</button>
+      <button class="btn-share" id="btn-share" onclick="shareResult()">📤 Share</button>
       <button class="btn-replay" id="btn-replay" onclick="playReplay()" style="display:none" title="Replay your moves as sound">▶ Replay</button>
       <button class="btn-play-again" id="btn-try-again" onclick="resetPuzzle()">↺ Try Again</button>
     </div>
@@ -1118,7 +1119,7 @@ function buildGrid() {
 
 function syncCells() {
   cells.forEach((cell, i) => {
-    cell.className = 'cell' + (state[i] ? ' on' : '');
+    cell.classList.toggle('on', !!state[i]);
     cell.setAttribute('aria-pressed', state[i] ? 'true' : 'false');
   });
   document.getElementById('moves-val').textContent = moves;
@@ -1476,10 +1477,13 @@ function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
       moves <= 8 ? 'Flawless.' : moves <= 14 ? 'Well played.' : 'Nice one!';
   }
 
-  // Hints line (not meaningful in replay mode)
+  // Hints line
   const winHintsLine = document.getElementById('win-hints-line');
-  if (!replayMode && hintsUsed > 0) {
-    winHintsLine.textContent = `💡 ${hintsUsed} hint${hintsUsed > 1 ? 's' : ''} used`;
+  const replayHints = replayMode
+    ? moveHistory.filter(m => m.isHint).length
+    : hintsUsed;
+  if (replayHints > 0) {
+    winHintsLine.textContent = `💡 ${replayHints} hint${replayHints > 1 ? 's' : ''} used`;
     winHintsLine.style.display = '';
   } else {
     winHintsLine.style.display = 'none';
