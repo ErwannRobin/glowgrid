@@ -1273,29 +1273,53 @@ function playClick(cellIndex, cellWasOn) {
   } catch (_) {}
 }
 
+let _replayTimers  = [];
+let _replayIndex   = 0;   // next move to play
+let _replayPlaying = false;
+
+function resetReplayState() {
+  _replayTimers.forEach(clearTimeout);
+  _replayTimers  = [];
+  _replayIndex   = 0;
+  _replayPlaying = false;
+}
+
 function playReplay() {
   if (!soundEnabled || moveHistory.length === 0) return;
   const btn = document.getElementById('btn-replay');
-  btn.disabled = true;
+
+  if (_replayPlaying) {
+    // Pause: cancel pending timers, remember position
+    _replayTimers.forEach(clearTimeout);
+    _replayTimers  = [];
+    _replayPlaying = false;
+    btn.classList.remove('replaying');
+    btn.textContent = '▶ Resume';
+    return;
+  }
+
+  // Start or resume from _replayIndex
+  _replayPlaying = true;
   btn.classList.add('replaying');
-  btn.textContent = '▶ …';
+  btn.textContent = '⏸ Pause';
 
-  // Pace: faster for longer games, min 80ms, max 220ms per move
-  const interval = Math.max(80, Math.min(220, Math.round(2200 / moveHistory.length)));
+  const INTERVAL = 160;
+  const remaining = moveHistory.slice(_replayIndex);
 
-  moveHistory.forEach(({ cellIndex, cellWasOn }, idx) => {
-    setTimeout(() => {
+  remaining.forEach(({ cellIndex, cellWasOn }, i) => {
+    _replayTimers.push(setTimeout(() => {
+      _replayIndex++;
       playClick(cellIndex, cellWasOn);
-    }, idx * interval);
+    }, i * INTERVAL));
   });
 
-  // Win jingle after all moves
-  const totalDuration = moveHistory.length * interval + 300;
-  setTimeout(() => {
+  _replayTimers.push(setTimeout(() => {
+    _replayTimers  = [];
+    _replayPlaying = false;
+    _replayIndex   = 0; // reset so next ▶ Replay starts fresh
     btn.classList.remove('replaying');
     btn.textContent = '▶ Replay';
-    btn.disabled = false;
-  }, totalDuration);
+  }, (remaining.length - 1) * INTERVAL + 300));
 }
 
 function playWin() {
@@ -1389,7 +1413,8 @@ function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
     streakEl.style.display = 'none';
   }
 
-  // Replay button
+  // Replay button — reset state for fresh start
+  resetReplayState();
   const replayBtn = document.getElementById('btn-replay');
   replayBtn.style.display = soundEnabled ? '' : 'none';
   replayBtn.disabled = false;
@@ -1556,6 +1581,7 @@ function goDate(delta) {
 }
 
 function resetPuzzle() {
+  resetReplayState();
   document.getElementById('win-overlay').classList.remove('visible');
   state = puzzleState.slice();
   moves = 0;
