@@ -625,29 +625,6 @@ body {
   background: rgba(96,165,250,0.07);
 }
 
-.sound-style-select {
-  appearance: none;
-  -webkit-appearance: none;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: #64748b;
-  font-size: 12px;
-  font-family: inherit;
-  padding: 7px 10px;
-  border-radius: 10px;
-  cursor: pointer;
-  backdrop-filter: blur(8px);
-  outline: none;
-  transition: all 0.15s ease;
-  min-height: 38px;
-}
-
-.sound-style-select:hover {
-  background: rgba(255,255,255,0.09);
-  color: #94a3b8;
-  border-color: rgba(255,255,255,0.13);
-}
-
 /* ── Landscape / very short screens ── */
 @media (max-height: 600px) and (orientation: landscape) {
   :root { --cell: clamp(44px, 9vh, 60px); --gap: clamp(5px, 1.2vh, 10px); }
@@ -667,11 +644,6 @@ body {
 
 <!-- Sound controls (top-right) -->
 <div class="sound-ctrl" id="sound-ctrl">
-  <select class="sound-style-select" id="sound-style" onchange="onSoundStyleChange()" style="display:none" title="Sound style">
-    <option value="v2">Subtle clicks</option>
-    <option value="v1">Musical notes</option>
-    <option value="v3">Glass ding</option>
-  </select>
   <button class="sound-toggle" id="sound-toggle" onclick="toggleSound()" aria-label="Toggle sound" title="Toggle sound">🔇</button>
 </div>
 
@@ -1062,6 +1034,8 @@ function btn_hint() { return document.getElementById('btn-hint'); }
 
 // ── Rendering ────────────────────────────────────────────────
 
+let _lastHoverSound = 0; // timestamp throttle for hover sounds
+
 function buildGrid() {
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
@@ -1076,7 +1050,14 @@ function buildGrid() {
     cell.style.setProperty('--idx', i);
 
     if (!isTouchDevice()) {
-      cell.addEventListener('mouseenter', () => previewCells(i));
+      cell.addEventListener('mouseenter', () => {
+        previewCells(i);
+        const now = Date.now();
+        if (now - _lastHoverSound > 80) {
+          _lastHoverSound = now;
+          playHoverSound(i, state[i]);
+        }
+      });
       cell.addEventListener('mouseleave', clearPreview);
     }
     cell.addEventListener('click', () => handleClick(i, cell));
@@ -1110,21 +1091,25 @@ const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches;
 let _mobilePreviewTimer = null;
 
 function handleClick(i, cell) {
-  clearHintHighlight();  // clear highlighted hint on any click
-  hintPath = null;       // invalidate stale path (state is about to change)
+  const wasHintCell = activeHintCell === i; // capture before clearHintHighlight
+  clearHintHighlight();
+  hintPath = null;
   hintStep = 0;
-  updateHintInfo();      // hide the info label
+  updateHintInfo();
 
-  // Capture affected cells BEFORE the toggle (correct pre-click pattern)
   const changedCells = affectedCells(i);
-  const cellWasOn = state[i];   // capture before toggle for sound
+  const cellWasOn = state[i];
 
   clickCounts[i]++;
   applyToggle(i);
   moves++;
-  moveHistory.push({ cellIndex: i, cellWasOn });
+  moveHistory.push({ cellIndex: i, cellWasOn, isHint: wasHintCell });
 
-  playClick(i, cellWasOn);
+  if (wasHintCell) {
+    playMusicalClick(i, cellWasOn);
+  } else {
+    playGlassClick(i, cellWasOn);
+  }
 
   const ripple = document.createElement('div');
   ripple.className = 'ripple';
@@ -1178,7 +1163,6 @@ function generatePuzzleForKey(key) {
 
 let _audioCtx = null;
 let soundEnabled = localStorage.getItem('gg_sound') !== 'off';
-let soundStyle   = localStorage.getItem('gg_sound_style') || 'v2'; // 'v1' | 'v2' | 'v3'
 
 function audioCtx() {
   if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1188,12 +1172,8 @@ function audioCtx() {
 
 function initSoundUI() {
   const btn = document.getElementById('sound-toggle');
-  const sel = document.getElementById('sound-style');
   btn.textContent = soundEnabled ? '🔊' : '🔇';
   btn.classList.toggle('sound-on', soundEnabled);
-  sel.value = soundStyle;
-  sel.style.display = soundEnabled ? '' : 'none';
-  // Show/hide replay button based on sound state
   const replay = document.getElementById('btn-replay');
   if (replay) replay.style.display = soundEnabled ? '' : 'none';
 }
@@ -1204,21 +1184,46 @@ function toggleSound() {
   initSoundUI();
 }
 
-function onSoundStyleChange() {
-  soundStyle = document.getElementById('sound-style').value;
-  localStorage.setItem('gg_sound_style', soundStyle);
-}
-
 // C major pentatonic base frequencies (C D E G A)
 const PENTA_BASE = [261.63, 293.66, 329.63, 392.00, 440.00];
-// Row multipliers: 5 rows → spread across ~2.5 octaves
 const ROW_MULT   = [0.5, 0.75, 1.0, 1.5, 2.0];
 
 function cellFreq(i) {
   return PENTA_BASE[i % SIZE] * ROW_MULT[Math.floor(i / SIZE)];
 }
 
-function playClick(cellIndex, cellWasOn) {
+// Glass ding — used for regular cell clicks
+function playGlassClick(cellIndex, cellWasOn) {
+  if (!soundEnabled) return;
+  try {
+    const ctx = audioCtx();
+    const now = ctx.currentTime;
+    const freq = cellFreq(cellIndex);
+    const glassFreq = cellWasOn ? freq * 1.8 : freq * 2.2;
+    const decay     = cellWasOn ? 0.8 : 1.2;
+
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(glassFreq, now);
+    gain.gain.setValueAtTime(cellWasOn ? 0.07 : 0.09, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + decay);
+    osc.start(now); osc.stop(now + decay + 0.1);
+
+    const osc2  = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.connect(gain2); gain2.connect(ctx.destination);
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(glassFreq * 2.756, now);
+    gain2.gain.setValueAtTime(cellWasOn ? 0.02 : 0.03, now);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + decay * 0.5);
+    osc2.start(now); osc2.stop(now + decay * 0.5 + 0.1);
+  } catch (_) {}
+}
+
+// Musical pentatonic note — used for hint-guided clicks
+function playMusicalClick(cellIndex, cellWasOn) {
   if (!soundEnabled) return;
   try {
     const ctx = audioCtx();
@@ -1226,50 +1231,33 @@ function playClick(cellIndex, cellWasOn) {
     const freq = cellFreq(cellIndex);
     const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = cellWasOn ? 'sine' : 'triangle';
+    osc.frequency.setValueAtTime(freq, now);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.92, now + 0.12);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.14, now + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + (cellWasOn ? 0.18 : 0.28));
+    osc.start(now); osc.stop(now + 0.35);
+  } catch (_) {}
+}
 
-    if (soundStyle === 'v1') {
-      // Musical: pentatonic note with slight pitch fall
-      osc.type = cellWasOn ? 'sine' : 'triangle';
-      osc.frequency.setValueAtTime(freq, now);
-      osc.frequency.exponentialRampToValueAtTime(freq * 0.92, now + 0.12);
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(0.14, now + 0.008);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + (cellWasOn ? 0.18 : 0.28));
-      osc.start(now);
-      osc.stop(now + 0.35);
-    } else if (soundStyle === 'v3') {
-      // Glass ding — turning ON: higher pitch, brighter ring; turning OFF: lower pitch, shorter decay
-      const glassFreq = cellWasOn ? freq * 1.8 : freq * 2.2;
-      const decay     = cellWasOn ? 0.8 : 1.2;
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(glassFreq, now);
-      gain.gain.setValueAtTime(cellWasOn ? 0.07 : 0.09, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + decay);
-      osc.start(now);
-      osc.stop(now + decay + 0.1);
-      // Inharmonic overtone at 2.756× (characteristic of glass)
-      const osc2  = ctx.createOscillator();
-      const gain2 = ctx.createGain();
-      osc2.connect(gain2);
-      gain2.connect(ctx.destination);
-      osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(glassFreq * 2.756, now);
-      gain2.gain.setValueAtTime(cellWasOn ? 0.02 : 0.03, now);
-      gain2.gain.exponentialRampToValueAtTime(0.001, now + decay * 0.5);
-      osc2.start(now);
-      osc2.stop(now + decay * 0.5 + 0.1);
-    } else {
-      // Subtle clicks — turning ON: slightly higher pitch; turning OFF: slightly lower pitch
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(cellWasOn ? freq * 0.88 : freq * 1.12, now);
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(cellWasOn ? 0.06 : 0.08, now + 0.004);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
-      osc.start(now);
-      osc.stop(now + 0.07);
-    }
+// Subtle short pop — used for hover
+function playHoverSound(cellIndex, cellIsOn) {
+  if (!soundEnabled) return;
+  try {
+    const ctx = audioCtx();
+    const now = ctx.currentTime;
+    const freq = cellFreq(cellIndex);
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(cellIsOn ? freq * 0.88 : freq * 1.12, now);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(cellIsOn ? 0.04 : 0.05, now + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+    osc.start(now); osc.stop(now + 0.06);
   } catch (_) {}
 }
 
@@ -1306,10 +1294,14 @@ function playReplay() {
   const INTERVAL = 160;
   const remaining = moveHistory.slice(_replayIndex);
 
-  remaining.forEach(({ cellIndex, cellWasOn }, i) => {
+  remaining.forEach(({ cellIndex, cellWasOn, isHint }, i) => {
     _replayTimers.push(setTimeout(() => {
       _replayIndex++;
-      playClick(cellIndex, cellWasOn);
+      if (isHint) {
+        playMusicalClick(cellIndex, cellWasOn);
+      } else {
+        playGlassClick(cellIndex, cellWasOn);
+      }
     }, i * INTERVAL));
   });
 
@@ -1454,7 +1446,11 @@ function checkWin() {
 // ── Share ─────────────────────────────────────────────────────
 
 function encodeMoves(history) {
-  return history.map(({ cellIndex }) => String.fromCharCode(65 + cellIndex)).join('');
+  // Uppercase A–Y = regular click; lowercase a–y = hint-guided click
+  return history.map(({ cellIndex, isHint }) => {
+    const base = isHint ? 97 : 65; // 'a' vs 'A'
+    return String.fromCharCode(base + cellIndex);
+  }).join('');
 }
 
 function shareResult() {
@@ -1510,10 +1506,13 @@ function enterReplayMode(dateKey, encoded) {
   clickCounts = new Array(SIZE * SIZE).fill(0);
   moveHistory = [];
 
-  const indices = encoded.split('').map(c => c.charCodeAt(0) - 65);
-  for (const idx of indices) {
+  const chars = encoded.split('');
+  for (const ch of chars) {
+    const code = ch.charCodeAt(0);
+    const isHint = code >= 97; // lowercase = hint click
+    const idx = code - (isHint ? 97 : 65);
     if (idx < 0 || idx >= SIZE * SIZE) continue;
-    moveHistory.push({ cellIndex: idx, cellWasOn: state[idx] });
+    moveHistory.push({ cellIndex: idx, cellWasOn: state[idx], isHint });
     clickCounts[idx]++;
     applyToggle(idx);
   }
