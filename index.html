@@ -779,15 +779,15 @@ function seedFromKey(key) {
 }
 
 function puzzleNumberFromKey(key) {
-  const epoch = new Date('2025-01-01T00:00:00');
-  const date = dateFromKey(key);
-  return Math.max(1, Math.floor((date - epoch) / 86400000) + 1);
+  const [y, m, d] = key.split('-').map(Number);
+  const epoch  = Date.UTC(2025, 0, 1);
+  const target = Date.UTC(y, m - 1, d);
+  return Math.max(1, Math.floor((target - epoch) / 86400000) + 1);
 }
 
 function keyFromPuzzleNumber(num) {
-  const epoch = new Date('2025-01-01T00:00:00');
-  const d = new Date(epoch.getTime() + (num - 1) * 86400000);
-  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+  const d = new Date(Date.UTC(2025, 0, 1) + (num - 1) * 86400000);
+  return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
 }
 
 function formatDateLabel(key) {
