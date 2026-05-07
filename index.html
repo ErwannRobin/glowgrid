@@ -491,6 +491,40 @@ body {
 
 .btn-share:active { transform: scale(0.96); }
 
+.btn-replay {
+  padding: 12px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(96,165,250,0.25);
+  background: rgba(96,165,250,0.07);
+  color: #60a5fa;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  letter-spacing: 0.1px;
+}
+
+.btn-replay:hover {
+  background: rgba(96,165,250,0.14);
+  border-color: rgba(96,165,250,0.4);
+}
+
+.btn-replay:active { transform: scale(0.96); }
+
+.btn-replay:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@keyframes replay-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(96,165,250,0.3); }
+  50%       { box-shadow: 0 0 0 6px rgba(96,165,250,0); }
+}
+
+.btn-replay.replaying {
+  animation: replay-pulse 0.5s ease-in-out infinite;
+}
+
 .btn-play-again {
   background: linear-gradient(135deg, #3b82f6, #6366f1);
   color: white;
@@ -689,6 +723,7 @@ body {
     <div class="win-streak" id="win-streak" style="display:none"></div>
     <div class="win-actions">
       <button class="btn-share" onclick="shareResult()">⎘ Share</button>
+      <button class="btn-replay" id="btn-replay" onclick="playReplay()" style="display:none" title="Replay your moves as sound">▶ Replay</button>
       <button class="btn-play-again" onclick="resetPuzzle()">↺ Try Again</button>
     </div>
   </div>
@@ -704,6 +739,7 @@ const MAX_DAYS_BACK = 60;
 let state = [];
 let moves = 0;
 let clickCounts = new Array(SIZE * SIZE).fill(0); // raw click count per cell
+let moveHistory = []; // {cellIndex, cellWasOn} per click — for end-game replay
 let cells = [];
 let puzzleState = null; // initial state for current puzzle (for Reset)
 let currentDateKey = ''; // "YYYY-M-D"
@@ -1080,6 +1116,7 @@ function handleClick(i, cell) {
   clickCounts[i]++;
   applyToggle(i);
   moves++;
+  moveHistory.push({ cellIndex: i, cellWasOn });
 
   playClick(i, cellWasOn);
 
@@ -1150,6 +1187,9 @@ function initSoundUI() {
   btn.classList.toggle('sound-on', soundEnabled);
   sel.value = soundStyle;
   sel.style.display = soundEnabled ? '' : 'none';
+  // Show/hide replay button based on sound state
+  const replay = document.getElementById('btn-replay');
+  if (replay) replay.style.display = soundEnabled ? '' : 'none';
 }
 
 function toggleSound() {
@@ -1225,6 +1265,31 @@ function playClick(cellIndex, cellWasOn) {
       osc.stop(now + 0.07);
     }
   } catch (_) {}
+}
+
+function playReplay() {
+  if (!soundEnabled || moveHistory.length === 0) return;
+  const btn = document.getElementById('btn-replay');
+  btn.disabled = true;
+  btn.classList.add('replaying');
+  btn.textContent = '▶ …';
+
+  // Pace: faster for longer games, min 80ms, max 220ms per move
+  const interval = Math.max(80, Math.min(220, Math.round(2200 / moveHistory.length)));
+
+  moveHistory.forEach(({ cellIndex, cellWasOn }, idx) => {
+    setTimeout(() => {
+      playClick(cellIndex, cellWasOn);
+    }, idx * interval);
+  });
+
+  // Win jingle after all moves
+  const totalDuration = moveHistory.length * interval + 300;
+  setTimeout(() => {
+    btn.classList.remove('replaying');
+    btn.textContent = '▶ Replay';
+    btn.disabled = false;
+  }, totalDuration);
 }
 
 function playWin() {
@@ -1315,6 +1380,14 @@ function checkWin() {
   }
 
   document.getElementById('win-overlay').classList.add('visible');
+
+  // Show/hide replay button depending on sound state
+  const replayBtn = document.getElementById('btn-replay');
+  replayBtn.style.display = soundEnabled ? '' : 'none';
+  replayBtn.disabled = false;
+  replayBtn.classList.remove('replaying');
+  replayBtn.textContent = '▶ Replay';
+
   playWin();
   spawnParticles();
 }
@@ -1401,6 +1474,7 @@ function resetPuzzle() {
   state = puzzleState.slice();
   moves = 0;
   clickCounts = new Array(SIZE * SIZE).fill(0);
+  moveHistory = [];
   hintsUsed = 0;
   resetHintState();
   buildGrid();
