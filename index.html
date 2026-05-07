@@ -551,6 +551,69 @@ body {
   100% { transform: translate(var(--tx), var(--ty)) scale(0.2); opacity: 0; }
 }
 
+/* ── Sound controls ── */
+.sound-ctrl {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sound-toggle {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.05);
+  color: #64748b;
+  font-size: 17px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  backdrop-filter: blur(8px);
+  line-height: 1;
+}
+
+.sound-toggle:hover {
+  background: rgba(255,255,255,0.09);
+  color: #94a3b8;
+  border-color: rgba(255,255,255,0.13);
+}
+
+.sound-toggle.sound-on {
+  color: #60a5fa;
+  border-color: rgba(96,165,250,0.3);
+  background: rgba(96,165,250,0.07);
+}
+
+.sound-style-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #64748b;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 7px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  outline: none;
+  transition: all 0.15s ease;
+  min-height: 38px;
+}
+
+.sound-style-select:hover {
+  background: rgba(255,255,255,0.09);
+  color: #94a3b8;
+  border-color: rgba(255,255,255,0.13);
+}
+
 /* ── Landscape / very short screens ── */
 @media (max-height: 600px) and (orientation: landscape) {
   :root { --cell: clamp(44px, 9vh, 60px); --gap: clamp(5px, 1.2vh, 10px); }
@@ -567,6 +630,15 @@ body {
 <div class="bg-orb"></div>
 <div class="bg-orb"></div>
 <div class="bg-orb"></div>
+
+<!-- Sound controls (top-right) -->
+<div class="sound-ctrl" id="sound-ctrl">
+  <select class="sound-style-select" id="sound-style" onchange="onSoundStyleChange()" style="display:none" title="Sound style">
+    <option value="v2">Subtle clicks</option>
+    <option value="v1">Musical notes</option>
+  </select>
+  <button class="sound-toggle" id="sound-toggle" onclick="toggleSound()" aria-label="Toggle sound" title="Toggle sound">🔇</button>
+</div>
 
 <div class="container">
 
@@ -1061,11 +1133,33 @@ function generatePuzzleForKey(key) {
 // ── Audio ─────────────────────────────────────────────────────
 
 let _audioCtx = null;
+let soundEnabled = localStorage.getItem('gg_sound') !== 'off';
+let soundStyle   = localStorage.getItem('gg_sound_style') || 'v2'; // 'v1' | 'v2'
 
 function audioCtx() {
   if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (_audioCtx.state === 'suspended') _audioCtx.resume();
   return _audioCtx;
+}
+
+function initSoundUI() {
+  const btn = document.getElementById('sound-toggle');
+  const sel = document.getElementById('sound-style');
+  btn.textContent = soundEnabled ? '🔊' : '🔇';
+  btn.classList.toggle('sound-on', soundEnabled);
+  sel.value = soundStyle;
+  sel.style.display = soundEnabled ? '' : 'none';
+}
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  localStorage.setItem('gg_sound', soundEnabled ? 'on' : 'off');
+  initSoundUI();
+}
+
+function onSoundStyleChange() {
+  soundStyle = document.getElementById('sound-style').value;
+  localStorage.setItem('gg_sound_style', soundStyle);
 }
 
 // C major pentatonic base frequencies (C D E G A)
@@ -1078,30 +1172,41 @@ function cellFreq(i) {
 }
 
 function playClick(cellIndex, cellWasOn) {
+  if (!soundEnabled) return;
   try {
     const ctx = audioCtx();
     const now = ctx.currentTime;
     const freq = cellFreq(cellIndex);
-
     const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq, now);
-
-    // Very short pop: fast attack, quick decay (~50ms total)
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(cellWasOn ? 0.07 : 0.05, now + 0.004);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
-
-    osc.start(now);
-    osc.stop(now + 0.07);
+    if (soundStyle === 'v1') {
+      // Musical: pentatonic note with slight pitch fall
+      osc.type = cellWasOn ? 'sine' : 'triangle';
+      osc.frequency.setValueAtTime(freq, now);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.92, now + 0.12);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.14, now + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + (cellWasOn ? 0.18 : 0.28));
+      osc.start(now);
+      osc.stop(now + 0.35);
+    } else {
+      // Subtle: very short pop (~55ms)
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(cellWasOn ? 0.07 : 0.05, now + 0.004);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
+      osc.start(now);
+      osc.stop(now + 0.07);
+    }
   } catch (_) {}
 }
 
 function playWin() {
+  if (!soundEnabled) return;
   try {
     const ctx = audioCtx();
     const now = ctx.currentTime;
@@ -1299,6 +1404,7 @@ function loadCurrentPuzzle() {
 // ── Init ─────────────────────────────────────────────────────
 
 currentDateKey = todayKey();
+initSoundUI();
 loadCurrentPuzzle();
 </script>
 
