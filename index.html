@@ -1002,10 +1002,13 @@ function handleClick(i, cell) {
 
   // Capture affected cells BEFORE the toggle (correct pre-click pattern)
   const changedCells = affectedCells(i);
+  const cellWasOn = state[i];   // capture before toggle for sound
 
   clickCounts[i]++;
   applyToggle(i);
   moves++;
+
+  playClick(i, cellWasOn);
 
   const ripple = document.createElement('div');
   ripple.className = 'ripple';
@@ -1053,6 +1056,73 @@ function generatePuzzleForKey(key) {
     applyToggle(Math.floor(rng() * SIZE * SIZE));
   }
   puzzleState = state.slice();
+}
+
+// ── Audio ─────────────────────────────────────────────────────
+
+let _audioCtx = null;
+
+function audioCtx() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (_audioCtx.state === 'suspended') _audioCtx.resume();
+  return _audioCtx;
+}
+
+// C major pentatonic base frequencies (C D E G A)
+const PENTA_BASE = [261.63, 293.66, 329.63, 392.00, 440.00];
+// Row multipliers: 5 rows → spread across ~2.5 octaves
+const ROW_MULT   = [0.5, 0.75, 1.0, 1.5, 2.0];
+
+function cellFreq(i) {
+  return PENTA_BASE[i % SIZE] * ROW_MULT[Math.floor(i / SIZE)];
+}
+
+function playClick(cellIndex, cellWasOn) {
+  try {
+    const ctx = audioCtx();
+    const now = ctx.currentTime;
+    const freq = cellFreq(cellIndex);
+
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    // ON cells (plus-pattern): crisp sine; OFF cells (cross-pattern): softer triangle
+    osc.type = cellWasOn ? 'sine' : 'triangle';
+    osc.frequency.setValueAtTime(freq, now);
+    // Slight pitch fall for a satisfying "thunk"
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.92, now + 0.12);
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.14, now + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + (cellWasOn ? 0.18 : 0.28));
+
+    osc.start(now);
+    osc.stop(now + 0.35);
+  } catch (_) {}
+}
+
+function playWin() {
+  try {
+    const ctx = audioCtx();
+    const now = ctx.currentTime;
+    // Ascending C major arpeggio
+    [261.63, 329.63, 392.00, 523.25, 659.25, 783.99].forEach((freq, i) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      const t = now + i * 0.11;
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.18, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+      osc.start(t);
+      osc.stop(t + 0.8);
+    });
+  } catch (_) {}
 }
 
 // ── Win ──────────────────────────────────────────────────────
@@ -1120,6 +1190,7 @@ function checkWin() {
   }
 
   document.getElementById('win-overlay').classList.add('visible');
+  playWin();
   spawnParticles();
 }
 
