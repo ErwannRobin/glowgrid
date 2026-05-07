@@ -722,9 +722,9 @@ body {
     <div class="win-hints-line" id="win-hints-line" style="display:none"></div>
     <div class="win-streak" id="win-streak" style="display:none"></div>
     <div class="win-actions">
-      <button class="btn-share" onclick="shareResult()">⎘ Share</button>
+      <button class="btn-share" id="btn-share" onclick="shareResult()">⎘ Share</button>
       <button class="btn-replay" id="btn-replay" onclick="playReplay()" style="display:none" title="Replay your moves as sound">▶ Replay</button>
-      <button class="btn-play-again" onclick="resetPuzzle()">↺ Try Again</button>
+      <button class="btn-play-again" id="btn-try-again" onclick="resetPuzzle()">↺ Try Again</button>
     </div>
   </div>
 </div>
@@ -782,6 +782,12 @@ function puzzleNumberFromKey(key) {
   const epoch = new Date('2025-01-01T00:00:00');
   const date = dateFromKey(key);
   return Math.max(1, Math.floor((date - epoch) / 86400000) + 1);
+}
+
+function keyFromPuzzleNumber(num) {
+  const epoch = new Date('2025-01-01T00:00:00');
+  const d = new Date(epoch.getTime() + (num - 1) * 86400000);
+  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
 }
 
 function formatDateLabel(key) {
@@ -1317,26 +1323,18 @@ function playWin() {
 
 // ── Win ──────────────────────────────────────────────────────
 
-function checkWin() {
-  if (!state.every(v => v)) return;
+let isReplayMode = false; // true when viewing a shared replay URL
 
-  // Clear any active hint and timer
-  resetHintState();
-  btn_hint().disabled = true;
-
-  const streakUpdated = tryUpdateStreak();
-  refreshStreakDisplay();
-
-  // Mini heatmap preview
+function buildWinHeatmap() {
   const winGrid = document.getElementById('win-grid');
   winGrid.innerHTML = '';
   const heatColors = [
-    'rgba(255,255,255,0.04)',  // 0 — untouched
-    '#bfdbfe',                  // 1 — blue-200 (light)
-    '#60a5fa',                  // 2 — blue-400
-    '#2563eb',                  // 3 — blue-600
-    '#1e40af',                  // 4 — blue-800 (dark)
-    '#1e3a8a',                  // 5+ — blue-900 (darkest)
+    'rgba(255,255,255,0.04)',
+    '#bfdbfe',
+    '#60a5fa',
+    '#2563eb',
+    '#1e40af',
+    '#1e3a8a',
   ];
   const glows = [
     'none',
@@ -1356,22 +1354,34 @@ function checkWin() {
     if (n > 0) c.textContent = n;
     winGrid.appendChild(c);
   }
+}
+
+function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
+  buildWinHeatmap();
 
   document.getElementById('win-moves-line').textContent =
     `Solved in ${moves} move${moves === 1 ? '' : 's'}`;
-  document.getElementById('win-caption').textContent =
-    moves <= 8 ? 'Flawless.' : moves <= 14 ? 'Well played.' : 'Nice one!';
 
+  // Caption
+  if (replayMode) {
+    document.getElementById('win-caption').textContent = 'Someone shared this replay with you!';
+  } else {
+    document.getElementById('win-caption').textContent =
+      moves <= 8 ? 'Flawless.' : moves <= 14 ? 'Well played.' : 'Nice one!';
+  }
+
+  // Hints line (not meaningful in replay mode)
   const winHintsLine = document.getElementById('win-hints-line');
-  if (hintsUsed > 0) {
+  if (!replayMode && hintsUsed > 0) {
     winHintsLine.textContent = `💡 ${hintsUsed} hint${hintsUsed > 1 ? 's' : ''} used`;
     winHintsLine.style.display = '';
   } else {
     winHintsLine.style.display = 'none';
   }
 
+  // Streak badge
   const streakEl = document.getElementById('win-streak');
-  if (streakUpdated) {
+  if (!replayMode && streakUpdated) {
     const s = getStreak();
     streakEl.textContent = s > 1 ? `🔥 ${s} day streak!` : '🔥 Streak started!';
     streakEl.style.display = 'inline-flex';
@@ -1379,20 +1389,48 @@ function checkWin() {
     streakEl.style.display = 'none';
   }
 
-  document.getElementById('win-overlay').classList.add('visible');
-
-  // Show/hide replay button depending on sound state
+  // Replay button
   const replayBtn = document.getElementById('btn-replay');
   replayBtn.style.display = soundEnabled ? '' : 'none';
   replayBtn.disabled = false;
   replayBtn.classList.remove('replaying');
   replayBtn.textContent = '▶ Replay';
 
+  // Share button
+  document.getElementById('btn-share').style.display = replayMode ? 'none' : '';
+
+  // Try Again / Try yourself button
+  const tryBtn = document.getElementById('btn-try-again');
+  if (replayMode) {
+    tryBtn.textContent = '🎮 Try yourself';
+    tryBtn.onclick = tryYourself;
+  } else {
+    tryBtn.textContent = '↺ Try Again';
+    tryBtn.onclick = resetPuzzle;
+  }
+
+  document.getElementById('win-overlay').classList.add('visible');
+}
+
+function checkWin() {
+  if (!state.every(v => v)) return;
+
+  resetHintState();
+  btn_hint().disabled = true;
+
+  const streakUpdated = tryUpdateStreak();
+  refreshStreakDisplay();
+
+  showWinOverlay({ streakUpdated });
   playWin();
   spawnParticles();
 }
 
 // ── Share ─────────────────────────────────────────────────────
+
+function encodeMoves(history) {
+  return history.map(({ cellIndex }) => String.fromCharCode(65 + cellIndex)).join('');
+}
 
 function shareResult() {
   const num = puzzleNumberFromKey(currentDateKey);
@@ -1409,15 +1447,63 @@ function shareResult() {
   const streak = getStreak();
   const streakSuffix = currentDateKey === todayKey() && streak > 1 ? ` 🔥${streak}` : '';
   const hintSuffix = hintsUsed > 0 ? ` (${hintsUsed} hint${hintsUsed > 1 ? 's' : ''})` : '';
+
+  const replayEncoded = encodeMoves(moveHistory);
+  const puzzleNum = puzzleNumberFromKey(currentDateKey);
+  const replayURL = `${location.origin}${location.pathname}?p=${puzzleNum}&r=${replayEncoded}`;
+
   const text = [
     `GlowGrid #${num} · ${dateStr} ✨`,
     ...rows,
     `Solved in ${moves} move${moves === 1 ? '' : 's'}${streakSuffix}${hintSuffix}`,
+    `🎵 ${replayURL}`,
   ].join('\n');
 
   navigator.clipboard.writeText(text)
     .then(() => showToast('Copied to clipboard!'))
     .catch(() => showToast('Copy failed — try again'));
+}
+
+// ── Replay mode (shared URL) ──────────────────────────────────
+
+function enterReplayMode(dateKey, encoded) {
+  isReplayMode = true;
+  currentDateKey = dateKey;
+
+  // Update nav label
+  const num = puzzleNumberFromKey(dateKey);
+  const label = formatDateLabel(dateKey);
+  document.getElementById('puzzle-label').textContent = `#${num} · ${label}`;
+
+  const today = todayKey();
+  const minDate = offsetDate(today, -MAX_DAYS_BACK);
+  document.getElementById('btn-prev').disabled = currentDateKey <= minDate;
+  document.getElementById('btn-next').disabled = currentDateKey === today;
+
+  // Generate puzzle and simulate moves to rebuild state + heatmap
+  generatePuzzleForKey(dateKey);
+  clickCounts = new Array(SIZE * SIZE).fill(0);
+  moveHistory = [];
+
+  const indices = encoded.split('').map(c => c.charCodeAt(0) - 65);
+  for (const idx of indices) {
+    if (idx < 0 || idx >= SIZE * SIZE) continue;
+    moveHistory.push({ cellIndex: idx, cellWasOn: state[idx] });
+    clickCounts[idx]++;
+    applyToggle(idx);
+  }
+  moves = moveHistory.length;
+
+  buildGrid(); // show solved (all-ON) grid behind the overlay
+  refreshStreakDisplay();
+  showWinOverlay({ replayMode: true });
+  spawnParticles();
+}
+
+function tryYourself() {
+  isReplayMode = false;
+  history.replaceState({}, '', location.pathname);
+  loadCurrentPuzzle();
 }
 
 function showToast(msg) {
@@ -1501,7 +1587,23 @@ function loadCurrentPuzzle() {
 
 currentDateKey = todayKey();
 initSoundUI();
-loadCurrentPuzzle();
+
+const _params = new URLSearchParams(location.search);
+const _replayParam = _params.get('r');
+const _puzzleNum   = parseInt(_params.get('p'), 10);
+
+if (_replayParam && _puzzleNum > 0) {
+  const _replayDate = keyFromPuzzleNumber(_puzzleNum);
+  if (_replayDate > todayKey()) {
+    // Future puzzle — refuse and load today
+    history.replaceState({}, '', location.pathname);
+    loadCurrentPuzzle();
+  } else {
+    enterReplayMode(_replayDate, _replayParam);
+  }
+} else {
+  loadCurrentPuzzle();
+}
 </script>
 
 </body>
