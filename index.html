@@ -184,6 +184,8 @@ body {
   display: grid;
   grid-template-columns: repeat(5, var(--cell));
   gap: var(--gap);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* ── Cell ── */
@@ -958,8 +960,10 @@ function buildGrid() {
     cell.setAttribute('aria-pressed', state[i] ? 'true' : 'false');
     cell.style.setProperty('--idx', i);
 
-    cell.addEventListener('mouseenter', () => previewCells(i));
-    cell.addEventListener('mouseleave', clearPreview);
+    if (!isTouchDevice()) {
+      cell.addEventListener('mouseenter', () => previewCells(i));
+      cell.addEventListener('mouseleave', clearPreview);
+    }
     cell.addEventListener('click', () => handleClick(i, cell));
     cell.addEventListener('keydown', e => handleKey(e, i));
 
@@ -987,11 +991,18 @@ function clearPreview() {
 
 // ── Interaction ──────────────────────────────────────────────
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches;
+let _mobilePreviewTimer = null;
+
 function handleClick(i, cell) {
   clearHintHighlight();  // clear highlighted hint on any click
   hintPath = null;       // invalidate stale path (state is about to change)
   hintStep = 0;
   updateHintInfo();      // hide the info label
+
+  // Capture affected cells BEFORE the toggle (correct pre-click pattern)
+  const changedCells = affectedCells(i);
+
   clickCounts[i]++;
   applyToggle(i);
   moves++;
@@ -1002,9 +1013,18 @@ function handleClick(i, cell) {
   ripple.addEventListener('animationend', () => ripple.remove(), { once: true });
 
   clearPreview();
+  if (_mobilePreviewTimer) { clearTimeout(_mobilePreviewTimer); _mobilePreviewTimer = null; }
   syncCells();
   checkStuck();
-  previewCells(i);
+
+  if (isTouchDevice()) {
+    // Flash the cells that actually changed, then auto-clear
+    changedCells.forEach(j => cells[j].classList.add('preview'));
+    _mobilePreviewTimer = setTimeout(() => { clearPreview(); _mobilePreviewTimer = null; }, 700);
+  } else {
+    previewCells(i);
+  }
+
   checkWin();
 }
 
