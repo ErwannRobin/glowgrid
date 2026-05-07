@@ -320,13 +320,28 @@ body {
 }
 
 @keyframes hint-ring {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(96,165,250,0.6), inset 0 0 10px rgba(59,130,246,0.25); }
-  50%       { box-shadow: 0 0 0 5px rgba(96,165,250,0.25), inset 0 0 18px rgba(59,130,246,0.5); }
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(96,165,250,0.85), 0 0 20px rgba(59,130,246,0.4), inset 0 0 8px rgba(59,130,246,0.2);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(96,165,250,0.28), 0 0 40px rgba(59,130,246,0.65), inset 0 0 18px rgba(59,130,246,0.45);
+    transform: scale(1.07);
+  }
 }
 
 .cell.hint-highlight {
-  animation: hint-ring 1s ease-in-out infinite !important;
-  border-color: rgba(96,165,250,0.75) !important;
+  animation: hint-ring 0.9s ease-in-out infinite !important;
+  border-color: rgba(96,165,250,0.95) !important;
+  z-index: 2;
+}
+
+.hint-info {
+  font-size: 12px;
+  color: #60a5fa;
+  letter-spacing: 0.2px;
+  text-align: center;
+  opacity: 0.9;
 }
 
 /* ── Win overlay ── */
@@ -582,6 +597,8 @@ body {
     <button class="btn" onclick="resetPuzzle()">↺ Reset</button>
     <button class="btn btn-hint" id="btn-hint" onclick="requestHint()" disabled title="Available when 3 or fewer cells remain off">💡 Hint</button>
   </div>
+
+  <div class="hint-info" id="hint-info" style="display:none"></div>
 
 </div>
 
@@ -854,15 +871,25 @@ function resetHintState() {
   stuckTimer = null;
   clearHintHighlight();
   hintPath = null;
+  hintStep = 0;
+  const el = document.getElementById('hint-info');
+  if (el) el.style.display = 'none';
 }
 
 function checkStuck() {
   clearTimeout(stuckTimer);
-  const btn = document.getElementById('btn-hint');
+  const btn = btn_hint();
   btn.classList.remove('hint-ready');
 
   if (state.every(v => v)) { btn.disabled = true; return; }
 
+  // Once the user has used any hint, keep the button permanently enabled
+  if (hintsUsed > 0) {
+    btn.disabled = false;
+    return;
+  }
+
+  // First hint: only unlock when ≤3 cells are OFF, after 20s idle
   const off = state.filter(v => !v).length;
   if (off > 0 && off <= 3) {
     btn.disabled = false;
@@ -873,23 +900,45 @@ function checkStuck() {
 }
 
 function requestHint() {
-  if (activeHintCell !== -1) return; // hint already showing — idempotent
-  if (state.every(v => v)) return;   // already won
+  if (state.every(v => v)) return;
 
-  const path = bidirBFSSolve(state) || greedyHint(state);
-  if (!path || path.length === 0) {
-    showToast('No hint found — try a different move');
+  // Compute solution path once per game-state; recomputed after any move (hintPath=null)
+  if (!hintPath) {
+    const path = bidirBFSSolve(state) || greedyHint(state);
+    if (!path || path.length === 0) {
+      showToast('No hint found — try a different move');
+      return;
+    }
+    hintPath = path;
+    hintStep = 0;
+  }
+
+  if (hintStep >= hintPath.length) {
+    showToast('Follow the highlighted steps!');
     return;
   }
 
-  hintPath = path;
-  activeHintCell = hintPath[0];
+  clearHintHighlight();
+  activeHintCell = hintPath[hintStep];
   cells[activeHintCell].classList.add('hint-highlight');
   hintsUsed++;
+  hintStep++;
 
-  // Remove pulse animation once hint is visible
   btn_hint().classList.remove('hint-ready');
-  btn_hint().disabled = true; // re-enables on next move via checkStuck
+  // Keep button enabled — user can advance through all steps
+  updateHintInfo();
+}
+
+function updateHintInfo() {
+  const el = document.getElementById('hint-info');
+  if (!hintPath || activeHintCell === -1) {
+    el.style.display = 'none';
+    return;
+  }
+  const total = hintPath.length;
+  const step  = hintStep; // already incremented
+  el.innerHTML = `Solvable in <strong>${total}</strong> move${total === 1 ? '' : 's'} &nbsp;·&nbsp; step ${step} / ${total}`;
+  el.style.display = '';
 }
 
 function btn_hint() { return document.getElementById('btn-hint'); }
@@ -941,6 +990,8 @@ function clearPreview() {
 function handleClick(i, cell) {
   clearHintHighlight();  // clear highlighted hint on any click
   hintPath = null;       // invalidate stale path (state is about to change)
+  hintStep = 0;
+  updateHintInfo();      // hide the info label
   clickCounts[i]++;
   applyToggle(i);
   moves++;
