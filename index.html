@@ -1088,18 +1088,16 @@ function playClick(cellIndex, cellWasOn) {
     osc.connect(gain);
     gain.connect(ctx.destination);
 
-    // ON cells (plus-pattern): crisp sine; OFF cells (cross-pattern): softer triangle
-    osc.type = cellWasOn ? 'sine' : 'triangle';
+    osc.type = 'sine';
     osc.frequency.setValueAtTime(freq, now);
-    // Slight pitch fall for a satisfying "thunk"
-    osc.frequency.exponentialRampToValueAtTime(freq * 0.92, now + 0.12);
 
+    // Very short pop: fast attack, quick decay (~50ms total)
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.14, now + 0.008);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + (cellWasOn ? 0.18 : 0.28));
+    gain.gain.linearRampToValueAtTime(cellWasOn ? 0.07 : 0.05, now + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
 
     osc.start(now);
-    osc.stop(now + 0.35);
+    osc.stop(now + 0.07);
   } catch (_) {}
 }
 
