@@ -356,24 +356,26 @@ body {
 /* Mini grid preview in win overlay */
 .win-grid {
   display: grid;
-  grid-template-columns: repeat(5, 18px);
-  gap: 3px;
+  grid-template-columns: repeat(5, 26px);
+  gap: 4px;
   margin: 0 auto 8px;
   width: fit-content;
 }
 
 .win-grid-cell {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  background: rgba(255,255,255,0.05);
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.06);
-}
-
-.win-grid-cell.clicked {
-  background: #3b82f6;
-  border-color: rgba(147,197,253,0.3);
-  box-shadow: 0 0 6px rgba(59,130,246,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.55);
+  transition: background 0.15s ease;
 }
 
 .win-moves-line {
@@ -551,7 +553,7 @@ const MAX_DAYS_BACK = 60;
 
 let state = [];
 let moves = 0;
-let netClicks = new Array(SIZE * SIZE).fill(0); // net parity of clicks per cell
+let clickCounts = new Array(SIZE * SIZE).fill(0); // raw click count per cell
 let cells = [];
 let puzzleState = null; // initial state for current puzzle (for Reset)
 let currentDateKey = ''; // "YYYY-M-D"
@@ -703,7 +705,7 @@ function clearPreview() {
 // ── Interaction ──────────────────────────────────────────────
 
 function handleClick(i, cell) {
-  netClicks[i]++;
+  clickCounts[i]++;
   applyToggle(i);
   moves++;
 
@@ -753,12 +755,33 @@ function checkWin() {
   const streakUpdated = tryUpdateStreak();
   refreshStreakDisplay();
 
-  // Mini grid preview
+  // Mini heatmap preview
   const winGrid = document.getElementById('win-grid');
   winGrid.innerHTML = '';
+  const heatColors = [
+    'rgba(255,255,255,0.04)',  // 0 — untouched
+    '#bfdbfe',                  // 1 — blue-200 (light)
+    '#60a5fa',                  // 2 — blue-400
+    '#2563eb',                  // 3 — blue-600
+    '#1e40af',                  // 4 — blue-800 (dark)
+    '#1e3a8a',                  // 5+ — blue-900 (darkest)
+  ];
+  const glows = [
+    'none',
+    '0 0 6px rgba(191,219,254,0.5)',
+    '0 0 8px rgba(96,165,250,0.55)',
+    '0 0 8px rgba(37,99,235,0.6)',
+    '0 0 9px rgba(30,64,175,0.65)',
+    '0 0 10px rgba(30,58,138,0.7)',
+  ];
   for (let i = 0; i < SIZE * SIZE; i++) {
+    const n = clickCounts[i];
+    const level = Math.min(n, heatColors.length - 1);
     const c = document.createElement('div');
-    c.className = 'win-grid-cell' + (netClicks[i] % 2 === 1 ? ' clicked' : '');
+    c.className = 'win-grid-cell';
+    c.style.background = heatColors[level];
+    c.style.boxShadow = glows[level];
+    if (n > 0) c.textContent = n;
     winGrid.appendChild(c);
   }
 
@@ -789,7 +812,8 @@ function shareResult() {
   for (let r = 0; r < SIZE; r++) {
     let row = '';
     for (let c = 0; c < SIZE; c++) {
-      row += netClicks[r * SIZE + c] % 2 === 1 ? '🟦' : '⬛';
+      const n = clickCounts[r * SIZE + c];
+      row += n === 0 ? '⬛' : '🟦';
     }
     rows.push(row);
   }
@@ -859,7 +883,7 @@ function resetPuzzle() {
   document.getElementById('win-overlay').classList.remove('visible');
   state = puzzleState.slice();
   moves = 0;
-  netClicks = new Array(SIZE * SIZE).fill(0);
+  clickCounts = new Array(SIZE * SIZE).fill(0);
   buildGrid();
 }
 
