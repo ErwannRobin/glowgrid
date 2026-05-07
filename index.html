@@ -1060,16 +1060,55 @@ function buildGrid() {
       });
       cell.addEventListener('mouseleave', clearPreview);
     } else {
-      // On touch: unlock audio + play sound immediately on touchstart,
-      // before the ~300ms click delay fires
-      cell.addEventListener('touchstart', () => {
+      cell.addEventListener('touchstart', (e) => {
         _unlockAudio();
-        const wasHintCell = activeHintCell === i;
-        if (wasHintCell) playMusicalClick(i, state[i]);
-        else             playGlassClick(i, state[i]);
+        _lpIsActive = false;
+        _lpCurrentCell = i;
+        _lpTimer = setTimeout(() => {
+          _lpIsActive = true;
+          _lpCurrentCell = i;
+          previewCells(i);
+          playHoverSound(i, state[i]);
+        }, 300);
+      }, { passive: true });
+
+      cell.addEventListener('touchend', () => {
+        _endLongPress(cell);
+      }, { passive: true });
+
+      cell.addEventListener('touchmove', (e) => {
+        if (!_lpIsActive) {
+          // Not yet in long-press mode — cancel the timer if finger moves
+          clearTimeout(_lpTimer);
+          return;
+        }
+        e.preventDefault(); // prevent scrolling while dragging preview
+        // Find which cell is under the finger
+        const touch = e.touches[0];
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (!el) return;
+        const cellEl = el.closest('.cell');
+        if (!cellEl) return;
+        const idx = cells.indexOf(cellEl);
+        if (idx === -1 || idx === _lpCurrentCell) return;
+        _lpCurrentCell = idx;
+        previewCells(idx);
+        const now = Date.now();
+        if (now - _lastHoverSound > 80) {
+          _lastHoverSound = now;
+          playHoverSound(idx, state[idx]);
+        }
+      }, { passive: false });
+
+      cell.addEventListener('touchcancel', () => {
+        _endLongPress(cell);
       }, { passive: true });
     }
-    cell.addEventListener('click', () => handleClick(i, cell));
+    cell.addEventListener('click', (e) => {
+      // Suppress click after a long-press preview
+      if (cell._suppressClick) { cell._suppressClick = false; return; }
+      handleClick(i, cell);
+    });
     cell.addEventListener('keydown', e => handleKey(e, i));
 
     grid.appendChild(cell);
@@ -1099,6 +1138,22 @@ function clearPreview() {
 const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches;
 let _mobilePreviewTimer = null;
 
+// Long-press state (module-level so touchmove across cells works)
+let _lpTimer = null;
+let _lpIsActive = false;
+let _lpCurrentCell = -1;
+
+function _endLongPress(originCell) {
+  clearTimeout(_lpTimer);
+  if (_lpIsActive) {
+    clearPreview();
+    // Suppress click on the originating cell (where touchstart fired)
+    if (originCell) originCell._suppressClick = true;
+    _lpIsActive = false;
+    _lpCurrentCell = -1;
+  }
+}
+
 function handleClick(i, cell) {
   const wasHintCell = activeHintCell === i; // capture before clearHintHighlight
   clearHintHighlight();
@@ -1116,8 +1171,7 @@ function handleClick(i, cell) {
 
   if (wasHintCell) {
     playMusicalClick(i, cellWasOn);
-  } else if (!isTouchDevice()) {
-    // Touch devices already played the sound on touchstart
+  } else {
     playGlassClick(i, cellWasOn);
   }
 
