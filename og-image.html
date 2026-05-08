@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>GlowGrid OG Image</title>
+<style>
+  /* OG image standard: 1200×630 */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1200px;
+    height: 630px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at 50% 30%, #1e293b 0%, #0f172a 60%, #020617 100%);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    position: relative;
+  }
+
+  /* Subtle grid glow in background */
+  body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 30% 25%, rgba(59,130,246,0.08) 0%, transparent 50%),
+      radial-gradient(circle at 70% 70%, rgba(147,51,234,0.06) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .logo {
+    width: 320px;
+    height: 320px;
+    object-fit: contain;
+    margin-bottom: 24px;
+    filter: drop-shadow(0 8px 32px rgba(59,130,246,0.3));
+  }
+
+  .tagline {
+    text-align: center;
+    max-width: 800px;
+    line-height: 1.5;
+  }
+
+  .tagline .line1 {
+    font-size: 32px;
+    font-weight: 600;
+    color: #e2e8f0;
+    letter-spacing: 0.3px;
+  }
+
+  .tagline .line2 {
+    font-size: 28px;
+    font-weight: 400;
+    color: #93c5fd;
+    margin-top: 10px;
+    font-style: italic;
+  }
+
+  .url {
+    position: absolute;
+    bottom: 28px;
+    font-size: 18px;
+    color: rgba(148,163,184,0.6);
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+  <img class="logo" src="glowgrid-logo.png" alt="GlowGrid" />
+  <div class="tagline">
+    <div class="line1">Glow up the grid for a daily unique solution.</div>
+    <div class="line2">What does yours sound like? 🔊</div>
+  </div>
+  <div class="url">glowgrid.netlify.app</div>
+</body>
+</html>
