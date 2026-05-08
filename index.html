@@ -883,7 +883,7 @@ body {
     <div class="win-grid" id="win-grid"></div>
     <div class="replay-bar" id="replay-bar">
       <button class="replay-play-btn" id="replay-play-btn" onclick="toggleReplayPlayback()">▶</button>
-      <div class="replay-track" id="replay-track" onclick="seekReplay(event)">
+      <div class="replay-track" id="replay-track" onmousedown="startDrag(event.clientX)" ontouchstart="startDrag(event.touches[0].clientX)">
         <div class="replay-track-fill" id="replay-track-fill"></div>
       </div>
       <span class="replay-step-label" id="replay-step-label">0/0</span>
@@ -1660,19 +1660,73 @@ function toggleReplayPlayback() {
   }
 }
 
-function seekReplay(e) {
+function seekToPosition(clientX) {
   const track = document.getElementById('replay-track');
   const rect = track.getBoundingClientRect();
-  const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
   const step = Math.round(pct * moveHistory.length);
+  if (step === _replayStep) return;
 
-  // Pause if playing
+  // Play sound for the step we're landing on
+  if (soundEnabled && step > 0) {
+    const move = moveHistory[step - 1];
+    if (move.isHint) {
+      playMusicalClick(move.cellIndex, move.cellWasOn);
+    } else {
+      playGlassClick(move.cellIndex, move.cellWasOn);
+    }
+  }
+
+  renderReplayStep(step);
+}
+
+let _wasDragging = false;
+let _wasPlayingBeforeDrag = false;
+
+function startDrag(clientX) {
+  _wasDragging = true;
+  _wasPlayingBeforeDrag = _replayPlaying;
   if (_replayPlaying) {
     _replayPlaying = false;
     if (_replayTimer) { clearTimeout(_replayTimer); _replayTimer = null; }
   }
+  seekToPosition(clientX);
+}
 
-  renderReplayStep(step);
+function duringDrag(clientX) {
+  if (!_wasDragging) return;
+  seekToPosition(clientX);
+}
+
+function endDrag() {
+  if (!_wasDragging) return;
+  _wasDragging = false;
+  if (_wasPlayingBeforeDrag && _replayStep < moveHistory.length) {
+    _replayPlaying = true;
+    updateReplayUI();
+    scheduleNextReplayStep();
+  }
+}
+
+// Mouse drag
+document.addEventListener('mousemove', (e) => duringDrag(e.clientX));
+document.addEventListener('mouseup', () => endDrag());
+
+// Touch drag
+document.addEventListener('touchmove', (e) => {
+  if (_wasDragging) {
+    e.preventDefault();
+    duringDrag(e.touches[0].clientX);
+  }
+}, { passive: false });
+document.addEventListener('touchend', () => endDrag());
+document.addEventListener('touchcancel', () => endDrag());
+
+function seekReplay(e) {
+  // Click-to-seek (non-drag)
+  startDrag(e.clientX || (e.touches && e.touches[0].clientX));
+  _wasPlayingBeforeDrag = false; // don't auto-resume on click
+  _wasDragging = false;
 }
 
 function switchWinView(mode) {
