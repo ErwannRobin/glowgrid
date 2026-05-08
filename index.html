@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#3b82f6" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="canonical" href="https://glowgrid.netlify.app/" />
+<link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -24,6 +29,22 @@
 <meta name="twitter:title" content="GlowGrid" />
 <meta name="twitter:description" content="Glow up the grid for a daily unique solution. What does yours sound like?" />
 <meta name="twitter:image" content="https://glowgrid.netlify.app/og-image.png" />
+
+<!-- Structured Data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "GlowGrid",
+  "url": "https://glowgrid.netlify.app",
+  "description": "Glow up the grid for a daily unique solution. What does yours sound like?",
+  "applicationCategory": "Game",
+  "genre": "Puzzle",
+  "operatingSystem": "Any",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "image": "https://glowgrid.netlify.app/og-image.png"
+}
+</script>
 
 <style>
 /* ── Fluid sizing tokens ── */
@@ -1592,7 +1613,9 @@ function shareResult() {
     `GlowGrid #${num} · ${dateStr} ✨`,
     ...rows,
     `Solved in ${moves} move${moves === 1 ? '' : 's'}${streakSuffix}${hintSuffix}`,
-    `🎵 ${replayURL}`,
+    '',
+    `🎵 Hear my solution:`,
+    replayURL,
   ].join('\n');
 
   navigator.clipboard.writeText(text)
@@ -1743,6 +1766,11 @@ if (_replayParam && _puzzleNum > 0) {
   }
 } else {
   loadCurrentPuzzle();
+}
+
+// Register service worker for offline support
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 </script>
 
