@@ -452,6 +452,42 @@ body {
   margin-bottom: 20px;
 }
 
+/* ── Win view toggle ── */
+.win-view-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 12px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.06);
+  overflow: hidden;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.win-view-tab {
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.2px;
+}
+
+.win-view-tab.active {
+  color: #93c5fd;
+  background: rgba(59,130,246,0.12);
+}
+
+.win-view-tab:hover:not(.active) {
+  color: #64748b;
+}
+
 /* Mini grid preview in win overlay */
 .win-grid {
   display: grid;
@@ -474,7 +510,92 @@ body {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.55);
-  transition: background 0.15s ease;
+  transition: background 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+}
+
+/* Replay ON/OFF states for mini grid */
+.win-grid.replay-mode .win-grid-cell {
+  font-size: 0;
+  color: transparent;
+}
+
+.win-grid.replay-mode .win-grid-cell.cell-on {
+  background: radial-gradient(circle at 38% 32%, #bae6fd, #60a5fa 55%, #3b82f6);
+  border-color: rgba(147,197,253,0.45);
+  box-shadow: 0 0 10px rgba(59,130,246,0.4);
+}
+
+.win-grid.replay-mode .win-grid-cell.cell-off {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.06);
+  box-shadow: none;
+}
+
+.win-grid.replay-mode .win-grid-cell.cell-clicked {
+  transform: scale(1.18);
+  border-color: rgba(250,204,21,0.7);
+  box-shadow: 0 0 12px rgba(250,204,21,0.4);
+  z-index: 1;
+}
+
+/* ── Replay progress bar ── */
+.replay-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px auto 4px;
+  width: calc(5 * 26px + 4 * 4px); /* match grid width */
+}
+
+.replay-play-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(96,165,250,0.3);
+  background: rgba(96,165,250,0.1);
+  color: #60a5fa;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.replay-play-btn:hover {
+  background: rgba(96,165,250,0.2);
+  border-color: rgba(96,165,250,0.5);
+}
+
+.replay-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.replay-track-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  border-radius: 3px;
+  transition: width 0.1s ease;
+}
+
+.replay-step-label {
+  font-size: 10px;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 36px;
+  text-align: right;
 }
 
 .win-moves-line {
@@ -676,6 +797,29 @@ body {
   .win-emoji { font-size: 32px; margin-bottom: 6px; }
   .win-card { padding: 16px 24px; }
 }
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  text-align: center;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: rgba(148,163,184,0.45);
+  letter-spacing: 0.3px;
+  pointer-events: none;
+  z-index: 10;
+}
+.footer a {
+  color: rgba(148,163,184,0.6);
+  text-decoration: none;
+  transition: color 0.2s;
+  pointer-events: auto;
+}
+.footer a:hover {
+  color: #93c5fd;
+}
 </style>
 </head>
 
@@ -732,13 +876,23 @@ body {
     <span class="win-emoji">✨</span>
     <div class="win-title">All lit up!</div>
     <div class="win-caption" id="win-caption">Well played.</div>
+    <div class="win-view-toggle" id="win-view-toggle">
+      <button class="win-view-tab active" data-view="replay" onclick="switchWinView('replay')">🔁 Replay</button>
+      <button class="win-view-tab" data-view="heatmap" onclick="switchWinView('heatmap')">🗺️ Heatmap</button>
+    </div>
     <div class="win-grid" id="win-grid"></div>
+    <div class="replay-bar" id="replay-bar">
+      <button class="replay-play-btn" id="replay-play-btn" onclick="toggleReplayPlayback()">▶</button>
+      <div class="replay-track" id="replay-track" onclick="seekReplay(event)">
+        <div class="replay-track-fill" id="replay-track-fill"></div>
+      </div>
+      <span class="replay-step-label" id="replay-step-label">0/0</span>
+    </div>
     <div class="win-moves-line" id="win-moves-line"></div>
     <div class="win-hints-line" id="win-hints-line" style="display:none"></div>
     <div class="win-streak" id="win-streak" style="display:none"></div>
     <div class="win-actions">
       <button class="btn-share" id="btn-share" onclick="shareResult()">📤 Share</button>
-      <button class="btn-replay" id="btn-replay" onclick="playReplay()" style="display:none" title="Replay your moves as sound">▶ Replay</button>
       <button class="btn-play-again" id="btn-try-again" onclick="resetPuzzle()">↺ Try Again</button>
     </div>
   </div>
@@ -1310,8 +1464,6 @@ function initSoundUI() {
   const btn = document.getElementById('sound-toggle');
   btn.textContent = soundEnabled ? '🔊' : '🔇';
   btn.classList.toggle('sound-on', soundEnabled);
-  const replay = document.getElementById('btn-replay');
-  if (replay) replay.style.display = soundEnabled ? '' : 'none';
 }
 
 function toggleSound() {
@@ -1397,57 +1549,161 @@ function playHoverSound(cellIndex, cellIsOn) {
   } catch (_) {}
 }
 
-let _replayTimers  = [];
-let _replayIndex   = 0;   // next move to play
-let _replayPlaying = false;
+// ── Interactive Replay ─────────────────────────────────────────
 
-function resetReplayState() {
-  _replayTimers.forEach(clearTimeout);
-  _replayTimers  = [];
-  _replayIndex   = 0;
-  _replayPlaying = false;
+let _replayStates  = [];   // precomputed grid states [initial, afterMove1, ...]
+let _replayStep    = 0;    // current step (0 = initial, N = after N moves)
+let _replayTimer   = null;
+let _replayPlaying = false;
+let _autoplayTimer = null;
+let _winViewMode   = 'replay'; // 'replay' or 'heatmap'
+
+const REPLAY_INTERVAL = 160;
+
+// Pure state computation — does not touch globals
+function applyToggleToState(st, cellIndex) {
+  const next = st.slice();
+  const affected = st[cellIndex] ? plusPattern(cellIndex) : crossPattern(cellIndex);
+  affected.forEach(j => { next[j] = !next[j]; });
+  return next;
 }
 
-function playReplay() {
-  if (!soundEnabled || moveHistory.length === 0) return;
-  const btn = document.getElementById('btn-replay');
+function buildReplayStates() {
+  _replayStates = [puzzleState.slice()];
+  for (const move of moveHistory) {
+    _replayStates.push(applyToggleToState(_replayStates.at(-1), move.cellIndex));
+  }
+}
 
-  if (_replayPlaying) {
-    // Pause: cancel pending timers, remember position
-    _replayTimers.forEach(clearTimeout);
-    _replayTimers  = [];
+function resetReplayState() {
+  if (_replayTimer) { clearTimeout(_replayTimer); _replayTimer = null; }
+  if (_autoplayTimer) { clearTimeout(_autoplayTimer); _autoplayTimer = null; }
+  _replayStep    = 0;
+  _replayPlaying = false;
+  _replayStates  = [];
+}
+
+function renderReplayGrid(step) {
+  const winGrid = document.getElementById('win-grid');
+  const st = _replayStates[step];
+  const clickedCell = step > 0 ? moveHistory[step - 1].cellIndex : -1;
+  const gridCells = winGrid.querySelectorAll('.win-grid-cell');
+
+  gridCells.forEach((c, i) => {
+    c.classList.toggle('cell-on', !!st[i]);
+    c.classList.toggle('cell-off', !st[i]);
+    c.classList.toggle('cell-clicked', i === clickedCell);
+    c.textContent = '';
+    c.style.background = '';
+    c.style.boxShadow = '';
+  });
+}
+
+function updateReplayUI() {
+  const total = moveHistory.length;
+  const fill = document.getElementById('replay-track-fill');
+  const label = document.getElementById('replay-step-label');
+  const btn = document.getElementById('replay-play-btn');
+
+  fill.style.width = total > 0 ? `${(_replayStep / total) * 100}%` : '0%';
+  label.textContent = `${_replayStep}/${total}`;
+  btn.textContent = _replayPlaying ? '⏸' : '▶';
+}
+
+function renderReplayStep(step) {
+  _replayStep = step;
+  renderCurrentView(step);
+  updateReplayUI();
+}
+
+function scheduleNextReplayStep() {
+  if (!_replayPlaying) return;
+  if (_replayStep >= moveHistory.length) {
     _replayPlaying = false;
-    btn.classList.remove('replaying');
-    btn.textContent = '▶ Resume';
+    updateReplayUI();
     return;
   }
+  _replayTimer = setTimeout(() => {
+    _replayStep++;
+    renderCurrentView(_replayStep);
+    updateReplayUI();
 
-  // Start or resume from _replayIndex
-  _replayPlaying = true;
-  btn.classList.add('replaying');
-  btn.textContent = '⏸ Pause';
-
-  const INTERVAL = 160;
-  const remaining = moveHistory.slice(_replayIndex);
-
-  remaining.forEach(({ cellIndex, cellWasOn, isHint }, i) => {
-    _replayTimers.push(setTimeout(() => {
-      _replayIndex++;
-      if (isHint) {
-        playMusicalClick(cellIndex, cellWasOn);
+    // Play sound for this move
+    if (soundEnabled && _replayStep > 0) {
+      const move = moveHistory[_replayStep - 1];
+      if (move.isHint) {
+        playMusicalClick(move.cellIndex, move.cellWasOn);
       } else {
-        playGlassClick(cellIndex, cellWasOn);
+        playGlassClick(move.cellIndex, move.cellWasOn);
       }
-    }, i * INTERVAL));
+    }
+
+    scheduleNextReplayStep();
+  }, REPLAY_INTERVAL);
+}
+
+function toggleReplayPlayback() {
+  if (_replayPlaying) {
+    // Pause
+    _replayPlaying = false;
+    if (_replayTimer) { clearTimeout(_replayTimer); _replayTimer = null; }
+    updateReplayUI();
+  } else {
+    // Play / Resume
+    if (_replayStep >= moveHistory.length) {
+      _replayStep = 0;
+      renderCurrentView(0);
+    }
+    _replayPlaying = true;
+    updateReplayUI();
+    scheduleNextReplayStep();
+  }
+}
+
+function seekReplay(e) {
+  const track = document.getElementById('replay-track');
+  const rect = track.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  const step = Math.round(pct * moveHistory.length);
+
+  // Pause if playing
+  if (_replayPlaying) {
+    _replayPlaying = false;
+    if (_replayTimer) { clearTimeout(_replayTimer); _replayTimer = null; }
+  }
+
+  renderReplayStep(step);
+}
+
+function switchWinView(mode) {
+  if (mode === _winViewMode) return;
+  _winViewMode = mode;
+
+  // Update tabs
+  document.querySelectorAll('.win-view-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.view === mode);
   });
 
-  _replayTimers.push(setTimeout(() => {
-    _replayTimers  = [];
-    _replayPlaying = false;
-    _replayIndex   = 0; // reset so next ▶ Replay starts fresh
-    btn.classList.remove('replaying');
-    btn.textContent = '▶ Replay';
-  }, (remaining.length - 1) * INTERVAL + 300));
+  const winGrid = document.getElementById('win-grid');
+
+  if (mode === 'replay') {
+    winGrid.classList.add('replay-mode');
+    renderReplayStep(_replayStep);
+  } else {
+    winGrid.classList.remove('replay-mode');
+    renderHeatmapAtStep(_replayStep);
+    updateReplayUI();
+  }
+}
+
+function startAutoplay() {
+  if (!document.getElementById('win-overlay').classList.contains('visible')) return;
+  if (_replayPlaying) return;
+  _replayStep = 0;
+  renderCurrentView(0);
+  _replayPlaying = true;
+  updateReplayUI();
+  scheduleNextReplayStep();
 }
 
 function playWin() {
@@ -1474,9 +1730,8 @@ function playWin() {
 
 let isReplayMode = false; // true when viewing a shared replay URL
 
-function buildWinHeatmap() {
+function renderHeatmapAtStep(step) {
   const winGrid = document.getElementById('win-grid');
-  winGrid.innerHTML = '';
   const heatColors = [
     'rgba(255,255,255,0.04)',
     '#bfdbfe',
@@ -1493,20 +1748,39 @@ function buildWinHeatmap() {
     '0 0 9px rgba(30,64,175,0.65)',
     '0 0 10px rgba(30,58,138,0.7)',
   ];
-  for (let i = 0; i < SIZE * SIZE; i++) {
-    const n = clickCounts[i];
+  // Count clicks up to this step
+  const counts = new Array(SIZE * SIZE).fill(0);
+  for (let i = 0; i < step; i++) {
+    counts[moveHistory[i].cellIndex]++;
+  }
+  const gridCells = winGrid.querySelectorAll('.win-grid-cell');
+  gridCells.forEach((c, i) => {
+    const n = counts[i];
     const level = Math.min(n, heatColors.length - 1);
-    const c = document.createElement('div');
     c.className = 'win-grid-cell';
     c.style.background = heatColors[level];
     c.style.boxShadow = glows[level];
-    if (n > 0) c.textContent = n;
-    winGrid.appendChild(c);
+    c.textContent = n > 0 ? n : '';
+  });
+}
+
+function renderCurrentView(step) {
+  if (_winViewMode === 'replay') {
+    renderReplayGrid(step);
+  } else {
+    renderHeatmapAtStep(step);
   }
 }
 
 function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
-  buildWinHeatmap();
+  // Build the mini grid cells (shared between both views)
+  const winGrid = document.getElementById('win-grid');
+  winGrid.innerHTML = '';
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    const c = document.createElement('div');
+    c.className = 'win-grid-cell';
+    winGrid.appendChild(c);
+  }
 
   document.getElementById('win-moves-line').textContent =
     `Solved in ${moves} move${moves === 1 ? '' : 's'}`;
@@ -1541,13 +1815,20 @@ function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
     streakEl.style.display = 'none';
   }
 
-  // Replay button — reset state for fresh start
+  // Setup interactive replay
   resetReplayState();
-  const replayBtn = document.getElementById('btn-replay');
-  replayBtn.style.display = soundEnabled ? '' : 'none';
-  replayBtn.disabled = false;
-  replayBtn.classList.remove('replaying');
-  replayBtn.textContent = '▶ Replay';
+  buildReplayStates();
+  _winViewMode = 'replay';
+
+  // Reset view toggle
+  document.querySelectorAll('.win-view-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.view === 'replay');
+  });
+
+  // Start in replay mode
+  winGrid.classList.add('replay-mode');
+  document.getElementById('replay-bar').style.display = 'flex';
+  renderReplayStep(0);
 
   // Share button
   document.getElementById('btn-share').style.display = replayMode ? 'none' : '';
@@ -1563,6 +1844,11 @@ function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
   }
 
   document.getElementById('win-overlay').classList.add('visible');
+
+  // Autoplay after 1 second (not for shared replay links — let user click play)
+  if (!replayMode) {
+    _autoplayTimer = setTimeout(() => startAutoplay(), 1000);
+  }
 }
 
 function checkWin() {
@@ -1774,6 +2060,8 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 </script>
+
+<footer class="footer">vibe coded with ❤️ by <a href="http://erwann.lovable.app" target="_blank" rel="noopener">Erwann</a></footer>
 
 </body>
 </html>
