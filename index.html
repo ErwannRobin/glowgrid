@@ -2078,22 +2078,26 @@ function drawReplayFrame(ctx, W, H, step, clickedCell) {
 
 let _isRecordingShare = false;
 let _preparedShareFile = null;
+let _prepareSharePromise = null;
 
 // Pre-record the replay video/image when win overlay opens
 async function prepareShareMedia() {
   _preparedShareFile = null;
+
+  // Generate image first (instant) so there's always something to share
+  try {
+    const imgBlob = await generateReplayImage();
+    if (imgBlob) _preparedShareFile = new File([imgBlob], 'glowgrid.png', { type: 'image/png' });
+  } catch (e) {}
+
+  // Then try video in background (takes a few seconds) — replaces image when ready
   try {
     const videoBlob = await recordReplayAsVideo();
     if (videoBlob && videoBlob.size > 0) {
       const ext = (videoBlob.type || '').includes('mp4') ? 'mp4' : 'webm';
       _preparedShareFile = new File([videoBlob], `glowgrid-replay.${ext}`, { type: videoBlob.type });
-    } else {
-      const imgBlob = await generateReplayImage();
-      if (imgBlob) _preparedShareFile = new File([imgBlob], 'glowgrid.png', { type: 'image/png' });
     }
-  } catch (e) {
-    // Silently fall back to text-only share
-  }
+  } catch (e) {}
 }
 
 function buildShareText() {
@@ -2190,15 +2194,15 @@ async function shareResult() {
   const text = buildShareText();
 
   try {
-    // Try native share with pre-recorded file
-    if (_preparedShareFile && navigator.share && navigator.canShare && navigator.canShare({ files: [_preparedShareFile] })) {
-      await navigator.share({ text, files: [_preparedShareFile] });
-      return;
-    }
-
-    // Try native share text-only
     if (navigator.share) {
-      await navigator.share({ text });
+      const shareData = { text };
+
+      // Attach pre-recorded file if the platform supports sharing it
+      if (_preparedShareFile && navigator.canShare && navigator.canShare({ files: [_preparedShareFile] })) {
+        shareData.files = [_preparedShareFile];
+      }
+
+      await navigator.share(shareData);
       return;
     }
 
