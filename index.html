@@ -271,13 +271,18 @@ body {
   outline-offset: 2px;
 }
 
-/* ON state */
+/* ON state — each cell gets its color from --hue/--sat/--light custom properties */
 .cell.on {
-  background: radial-gradient(circle at 38% 32%, #bae6fd, #60a5fa 55%, #3b82f6);
-  border-color: rgba(147,197,253,0.45);
+  background: radial-gradient(
+    circle at 38% 32%,
+    hsl(var(--hue), calc(var(--sat) - 15%), calc(var(--light) + 20%)),
+    hsl(var(--hue), var(--sat), var(--light)) 55%,
+    hsl(var(--hue), calc(var(--sat) + 5%), calc(var(--light) - 10%))
+  );
+  border-color: hsla(var(--hue), var(--sat), calc(var(--light) + 15%), 0.5);
   box-shadow:
-    0 0 22px rgba(59,130,246,0.5),
-    0 0 50px rgba(59,130,246,0.18),
+    0 0 22px hsla(var(--hue), var(--sat), var(--light), 0.5),
+    0 0 50px hsla(var(--hue), var(--sat), var(--light), 0.18),
     inset 0 1px 2px rgba(255,255,255,0.45);
 }
 
@@ -520,9 +525,14 @@ body {
 }
 
 .win-grid.replay-mode .win-grid-cell.cell-on {
-  background: radial-gradient(circle at 38% 32%, #bae6fd, #60a5fa 55%, #3b82f6);
-  border-color: rgba(147,197,253,0.45);
-  box-shadow: 0 0 10px rgba(59,130,246,0.4);
+  background: radial-gradient(
+    circle at 38% 32%,
+    hsl(var(--hue), calc(var(--sat) - 15%), calc(var(--light) + 20%)),
+    hsl(var(--hue), var(--sat), var(--light)) 55%,
+    hsl(var(--hue), calc(var(--sat) + 5%), calc(var(--light) - 10%))
+  );
+  border-color: hsla(var(--hue), var(--sat), calc(var(--light) + 15%), 0.5);
+  box-shadow: 0 0 10px hsla(var(--hue), var(--sat), var(--light), 0.4);
 }
 
 .win-grid.replay-mode .win-grid-cell.cell-off {
@@ -1246,6 +1256,15 @@ function buildGrid() {
     cell.setAttribute('aria-pressed', state[i] ? 'true' : 'false');
     cell.style.setProperty('--idx', i);
 
+    // Assign unique color per cell — rainbow gradient inspired by logo
+    const row = Math.floor(i / SIZE);
+    const col = i % SIZE;
+    // Hue sweeps from cyan (180°) through blue, purple, pink, red, orange, yellow, green
+    const hue = (180 + (col * 40) + (row * 50)) % 360;
+    cell.style.setProperty('--hue', hue);
+    cell.style.setProperty('--sat', '75%');
+    cell.style.setProperty('--light', '58%');
+
     if (!isTouchDevice()) {
       cell.addEventListener('mouseenter', () => {
         previewCells(i);
@@ -1873,6 +1892,12 @@ function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
   for (let i = 0; i < SIZE * SIZE; i++) {
     const c = document.createElement('div');
     c.className = 'win-grid-cell';
+    const row = Math.floor(i / SIZE);
+    const col = i % SIZE;
+    const hue = (180 + (col * 40) + (row * 50)) % 360;
+    c.style.setProperty('--hue', hue);
+    c.style.setProperty('--sat', '75%');
+    c.style.setProperty('--light', '58%');
     winGrid.appendChild(c);
   }
 
