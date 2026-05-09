@@ -1372,6 +1372,9 @@ function handleClick(i, cell) {
     playGlassClick(i, cellWasOn);
   }
 
+  // Subtle haptic feedback on mobile
+  hapticImpact();
+
   const ripple = document.createElement('div');
   ripple.className = 'ripple';
   cell.appendChild(ripple);
@@ -1418,6 +1421,43 @@ function generatePuzzleForKey(key) {
     applyToggle(Math.floor(rng() * SIZE * SIZE));
   }
   puzzleState = state.slice();
+}
+
+// ── Haptic feedback ───────────────────────────────────────────
+
+// iOS Safari 17.4+: toggling <input type="checkbox" switch=""> fires native haptics
+// Android: uses navigator.vibrate()
+let _hapticLabel = null;
+
+function _ensureHapticDOM() {
+  if (_hapticLabel) return;
+  const id = 'gg-haptic-switch';
+  const label = document.createElement('label');
+  label.setAttribute('for', id);
+  label.style.position = 'fixed';
+  label.style.opacity = '0';
+  label.style.pointerEvents = 'none';
+  label.style.zIndex = '-1';
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.setAttribute('switch', '');
+  checkbox.id = id;
+  checkbox.style.display = 'none';
+
+  label.appendChild(checkbox);
+  document.body.appendChild(label);
+  _hapticLabel = label;
+}
+
+function hapticImpact() {
+  if (navigator.vibrate) {
+    navigator.vibrate(8);
+    return;
+  }
+  // iOS Safari fallback — must be called within a user gesture
+  _ensureHapticDOM();
+  if (_hapticLabel) _hapticLabel.click();
 }
 
 // ── Audio ─────────────────────────────────────────────────────
