@@ -1968,6 +1968,9 @@ function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
 
   document.getElementById('win-overlay').classList.add('visible');
 
+  // Pre-record replay video/image for sharing (runs in background)
+  prepareShareMedia();
+
   // Autoplay after 1 second (not for shared replay links — let user click play)
   if (!replayMode) {
     _autoplayTimer = setTimeout(() => startAutoplay(), 1000);
@@ -1998,27 +2001,119 @@ function encodeMoves(history) {
   }).join('');
 }
 
-function shareResult() {
+// ── Canvas replay rendering & video export ────────────────────
+
+function _canvasRoundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawReplayFrame(ctx, W, H, step, clickedCell) {
+  const cellSize = 80, gap = 8;
+  const gridW = SIZE * cellSize + (SIZE - 1) * gap;
+  const gridX = (W - gridW) / 2;
+  const gridY = (H - gridW) / 2 + 20;
+
+  // Background
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Title
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 26px system-ui, -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  const num = puzzleNumberFromKey(currentDateKey);
+  ctx.fillText(`GlowGrid #${num}`, W / 2, 46);
+
+  // Date
+  ctx.font = '15px system-ui, -apple-system, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.fillText(formatDateLabel(currentDateKey), W / 2, 70);
+
+  // Grid
+  const st = _replayStates[step];
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    const row = Math.floor(i / SIZE), col = i % SIZE;
+    const x = gridX + col * (cellSize + gap);
+    const y = gridY + row * (cellSize + gap);
+    const hue = (180 + col * 40 + row * 50) % 360;
+
+    _canvasRoundRect(ctx, x, y, cellSize, cellSize, 12);
+
+    if (st[i]) {
+      const grad = ctx.createRadialGradient(
+        x + cellSize / 2, y + cellSize / 2, 0,
+        x + cellSize / 2, y + cellSize / 2, cellSize * 0.7
+      );
+      grad.addColorStop(0, `hsl(${hue}, 75%, 68%)`);
+      grad.addColorStop(1, `hsl(${hue}, 75%, 48%)`);
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    }
+    ctx.fill();
+
+    ctx.strokeStyle = i === clickedCell
+      ? `hsl(${hue}, 85%, 72%)`
+      : 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = i === clickedCell ? 3 : 1;
+    ctx.stroke();
+  }
+
+  // Move counter
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.font = '14px system-ui, -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${step} / ${moveHistory.length} moves`, W / 2, H - 26);
+}
+
+let _isRecordingShare = false;
+let _preparedShareFile = null;
+
+// Pre-record the replay video/image when win overlay opens
+async function prepareShareMedia() {
+  _preparedShareFile = null;
+  try {
+    const videoBlob = await recordReplayAsVideo();
+    if (videoBlob && videoBlob.size > 0) {
+      const ext = (videoBlob.type || '').includes('mp4') ? 'mp4' : 'webm';
+      _preparedShareFile = new File([videoBlob], `glowgrid-replay.${ext}`, { type: videoBlob.type });
+    } else {
+      const imgBlob = await generateReplayImage();
+      if (imgBlob) _preparedShareFile = new File([imgBlob], 'glowgrid.png', { type: 'image/png' });
+    }
+  } catch (e) {
+    // Silently fall back to text-only share
+  }
+}
+
+function buildShareText() {
   const num = puzzleNumberFromKey(currentDateKey);
   const dateStr = formatDateLabel(currentDateKey);
   const rows = [];
   for (let r = 0; r < SIZE; r++) {
     let row = '';
     for (let c = 0; c < SIZE; c++) {
-      const n = clickCounts[r * SIZE + c];
-      row += n === 0 ? '⬛' : '🟦';
+      row += clickCounts[r * SIZE + c] === 0 ? '⬛' : '🟦';
     }
     rows.push(row);
   }
   const streak = getStreak();
   const streakSuffix = currentDateKey === todayKey() && streak > 1 ? ` 🔥${streak}` : '';
   const hintSuffix = hintsUsed > 0 ? ` (${hintsUsed} hint${hintsUsed > 1 ? 's' : ''})` : '';
-
   const replayEncoded = encodeMoves(moveHistory);
   const puzzleNum = puzzleNumberFromKey(currentDateKey);
   const replayURL = `${location.origin}${location.pathname}?p=${puzzleNum}&r=${replayEncoded}`;
-
-  const text = [
+  return [
     `GlowGrid #${num} · ${dateStr} ✨`,
     ...rows,
     `Solved in ${moves} move${moves === 1 ? '' : 's'}${streakSuffix}${hintSuffix}`,
@@ -2026,14 +2121,96 @@ function shareResult() {
     `🎵 Hear my solution:`,
     replayURL,
   ].join('\n');
+}
 
-  navigator.clipboard.writeText(text)
-    .then(() => showToast('Copied to clipboard!'))
-    .catch(() => showToast('Copy failed — try again'));
+async function recordReplayAsVideo() {
+  const canvas = document.createElement('canvas');
+  const W = 540, H = 540;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
 
-  // Use native share if available
-  if (navigator.share) {
-    navigator.share({ text }).catch(() => {});
+  if (!canvas.captureStream || !window.MediaRecorder) return null;
+
+  const useManualFrames = typeof canvas.captureStream === 'function';
+  const stream = canvas.captureStream(useManualFrames ? 0 : 30);
+  const vTrack = stream.getVideoTracks()[0];
+
+  // Pick best supported codec
+  const codecs = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+  const mimeType = codecs.find(t => MediaRecorder.isTypeSupported(t));
+  const recorder = mimeType
+    ? new MediaRecorder(stream, { mimeType })
+    : new MediaRecorder(stream);
+
+  const chunks = [];
+  recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+
+  return new Promise((resolve, reject) => {
+    recorder.onerror = () => resolve(null);
+    recorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(chunks, { type: recorder.mimeType || 'video/webm' });
+      resolve(blob);
+    };
+
+    recorder.start();
+    let step = 0;
+
+    // Draw initial frame
+    drawReplayFrame(ctx, W, H, 0, -1);
+    if (vTrack.requestFrame) vTrack.requestFrame();
+
+    function advance() {
+      if (step >= moveHistory.length) {
+        // Hold final frame then stop
+        setTimeout(() => recorder.stop(), 800);
+        return;
+      }
+      step++;
+      const move = moveHistory[step - 1];
+      drawReplayFrame(ctx, W, H, step, move.cellIndex);
+      if (vTrack.requestFrame) vTrack.requestFrame();
+      setTimeout(advance, 450);
+    }
+    // Start after brief pause
+    setTimeout(advance, 500);
+  });
+}
+
+async function generateReplayImage() {
+  const canvas = document.createElement('canvas');
+  const W = 540, H = 540;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  drawReplayFrame(ctx, W, H, moveHistory.length, -1);
+  return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+}
+
+async function shareResult() {
+  const text = buildShareText();
+
+  try {
+    // Try native share with pre-recorded file
+    if (_preparedShareFile && navigator.share && navigator.canShare && navigator.canShare({ files: [_preparedShareFile] })) {
+      await navigator.share({ text, files: [_preparedShareFile] });
+      return;
+    }
+
+    // Try native share text-only
+    if (navigator.share) {
+      await navigator.share({ text });
+      return;
+    }
+
+    // Fallback: clipboard
+    await navigator.clipboard.writeText(text);
+    showToast('Copied to clipboard!');
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      navigator.clipboard.writeText(text)
+        .then(() => showToast('Copied to clipboard!'))
+        .catch(() => showToast('Copy failed — try again'));
+    }
   }
 }
 
