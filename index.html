@@ -1489,6 +1489,8 @@ function hapticImpact() {
 let _audioCtx = null;
 let _audioUnlocked = false;
 let soundEnabled = localStorage.getItem('gg_sound') !== 'off';
+let _masterGain = null;       // all sounds route through this
+let _recordingDest = null;    // MediaStreamDestination for video recording
 
 // Tiny silent MP3 as data URI (< 100 bytes). Playing an <audio> element
 // switches iOS from "ambient" to "playback" audio session, which makes
@@ -1499,7 +1501,34 @@ _silentAudio.setAttribute('playsinline', '');
 function _getCtx() {
   if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (_audioCtx.state === 'suspended') _audioCtx.resume();
+  if (!_masterGain) {
+    _masterGain = _audioCtx.createGain();
+    _masterGain.connect(_audioCtx.destination);
+  }
   return _audioCtx;
+}
+
+// Returns the node sounds should connect to (master gain → speakers + recording)
+function _audioDest() {
+  return _masterGain || _getCtx() && _masterGain;
+}
+
+// Connect master gain to a MediaStreamDestination for video recording
+function _startAudioCapture() {
+  const ctx = _getCtx();
+  if (ctx.createMediaStreamDestination) {
+    _recordingDest = ctx.createMediaStreamDestination();
+    _masterGain.connect(_recordingDest);
+    return _recordingDest.stream;
+  }
+  return null;
+}
+
+function _stopAudioCapture() {
+  if (_recordingDest) {
+    try { _masterGain.disconnect(_recordingDest); } catch (e) {}
+    _recordingDest = null;
+  }
 }
 
 // Called on every user gesture to unlock iOS audio.
@@ -1556,7 +1585,7 @@ function playGlassClick(cellIndex, cellWasOn) {
 
     const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
+    osc.connect(gain); gain.connect(_audioDest());
     osc.type = 'sine';
     osc.frequency.setValueAtTime(glassFreq, now);
     gain.gain.setValueAtTime(cellWasOn ? 0.07 : 0.09, now);
@@ -1565,7 +1594,7 @@ function playGlassClick(cellIndex, cellWasOn) {
 
     const osc2  = ctx.createOscillator();
     const gain2 = ctx.createGain();
-    osc2.connect(gain2); gain2.connect(ctx.destination);
+    osc2.connect(gain2); gain2.connect(_audioDest());
     osc2.type = 'sine';
     osc2.frequency.setValueAtTime(glassFreq * 2.756, now);
     gain2.gain.setValueAtTime(cellWasOn ? 0.02 : 0.03, now);
@@ -1583,7 +1612,7 @@ function playMusicalClick(cellIndex, cellWasOn) {
     const freq = cellFreq(cellIndex);
     const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
+    osc.connect(gain); gain.connect(_audioDest());
     osc.type = cellWasOn ? 'sine' : 'triangle';
     osc.frequency.setValueAtTime(freq, now);
     osc.frequency.exponentialRampToValueAtTime(freq * 0.92, now + 0.12);
@@ -1603,7 +1632,7 @@ function playHoverSound(cellIndex, cellIsOn) {
     const freq = cellFreq(cellIndex);
     const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
+    osc.connect(gain); gain.connect(_audioDest());
     osc.type = 'sine';
     osc.frequency.setValueAtTime(cellIsOn ? freq * 0.88 : freq * 1.12, now);
     gain.gain.setValueAtTime(0, now);
@@ -1683,12 +1712,14 @@ function scheduleNextReplayStep() {
   if (_replayStep >= moveHistory.length) {
     _replayPlaying = false;
     updateReplayUI();
+    stopLiveRecording();
     return;
   }
   _replayTimer = setTimeout(() => {
     _replayStep++;
     renderCurrentView(_replayStep);
     updateReplayUI();
+    updateLiveRecording(_replayStep);
 
     // Play sound for this move
     if (soundEnabled && _replayStep > 0) {
@@ -1819,6 +1850,7 @@ function startAutoplay() {
   renderCurrentView(0);
   _replayPlaying = true;
   updateReplayUI();
+  startLiveRecording();
   scheduleNextReplayStep();
 }
 
@@ -1830,7 +1862,7 @@ function playWin() {
     [261.63, 329.63, 392.00, 523.25, 659.25, 783.99].forEach((freq, i) => {
       const osc  = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
+      osc.connect(gain); gain.connect(_audioDest());
       osc.type = 'sine';
       const t = now + i * 0.11;
       osc.frequency.setValueAtTime(freq, t);
@@ -1968,10 +2000,8 @@ function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
 
   document.getElementById('win-overlay').classList.add('visible');
 
-  // Pre-record replay video/image for sharing (runs in background)
-  prepareShareMedia();
-
   // Autoplay after 1 second (not for shared replay links — let user click play)
+  // Live recording starts automatically with autoplay
   if (!replayMode) {
     _autoplayTimer = setTimeout(() => startAutoplay(), 1000);
   }
@@ -2078,26 +2108,89 @@ function drawReplayFrame(ctx, W, H, step, clickedCell) {
 
 let _isRecordingShare = false;
 let _preparedShareFile = null;
-let _prepareSharePromise = null;
+let _liveRecorder = null;
+let _liveRecordCanvas = null;
+let _liveRecordCtx = null;
+let _liveRecordVTrack = null;
+let _liveRecordChunks = [];
 
-// Pre-record the replay video/image when win overlay opens
-async function prepareShareMedia() {
+// Start live recording of the replay (called when autoplay begins)
+function startLiveRecording() {
   _preparedShareFile = null;
+  _liveRecordChunks = [];
 
-  // Generate image first (instant) so there's always something to share
-  try {
-    const imgBlob = await generateReplayImage();
-    if (imgBlob) _preparedShareFile = new File([imgBlob], 'glowgrid.png', { type: 'image/png' });
-  } catch (e) {}
-
-  // Then try video in background (takes a few seconds) — replaces image when ready
-  try {
-    const videoBlob = await recordReplayAsVideo();
-    if (videoBlob && videoBlob.size > 0) {
-      const ext = (videoBlob.type || '').includes('mp4') ? 'mp4' : 'webm';
-      _preparedShareFile = new File([videoBlob], `glowgrid-replay.${ext}`, { type: videoBlob.type });
+  // Always prepare a static image as fallback
+  generateReplayImage().then(blob => {
+    if (blob && !_preparedShareFile) {
+      _preparedShareFile = new File([blob], 'glowgrid.png', { type: 'image/png' });
     }
-  } catch (e) {}
+  }).catch(() => {});
+
+  try {
+    const canvas = document.createElement('canvas');
+    const W = 540, H = 540;
+    canvas.width = W; canvas.height = H;
+    _liveRecordCanvas = canvas;
+    _liveRecordCtx = canvas.getContext('2d');
+
+    if (!canvas.captureStream || !window.MediaRecorder) return;
+
+    const stream = canvas.captureStream(0);
+    _liveRecordVTrack = stream.getVideoTracks()[0];
+
+    // Capture audio
+    const audioStream = _startAudioCapture();
+    const combined = new MediaStream([...stream.getVideoTracks()]);
+    if (audioStream) {
+      audioStream.getAudioTracks().forEach(t => combined.addTrack(t));
+    }
+
+    const codecs = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+    const mimeType = codecs.find(t => MediaRecorder.isTypeSupported(t));
+    _liveRecorder = mimeType
+      ? new MediaRecorder(combined, { mimeType })
+      : new MediaRecorder(combined);
+
+    _liveRecorder.ondataavailable = e => { if (e.data.size) _liveRecordChunks.push(e.data); };
+    _liveRecorder.onstop = () => {
+      _stopAudioCapture();
+      combined.getTracks().forEach(t => t.stop());
+      const blob = new Blob(_liveRecordChunks, { type: _liveRecorder.mimeType || 'video/webm' });
+      if (blob.size > 0) {
+        const ext = (blob.type || '').includes('mp4') ? 'mp4' : 'webm';
+        _preparedShareFile = new File([blob], `glowgrid-replay.${ext}`, { type: blob.type });
+      }
+      _liveRecorder = null;
+    };
+    _liveRecorder.onerror = () => { _stopAudioCapture(); _liveRecorder = null; };
+
+    // Draw initial frame
+    drawReplayFrame(_liveRecordCtx, W, H, 0, -1);
+    if (_liveRecordVTrack.requestFrame) _liveRecordVTrack.requestFrame();
+    _liveRecorder.start();
+  } catch (e) {
+    _liveRecorder = null;
+  }
+}
+
+// Called on each replay step to update the recording canvas
+function updateLiveRecording(step) {
+  if (!_liveRecordCtx || !_liveRecorder) return;
+  const clickedCell = step > 0 ? moveHistory[step - 1].cellIndex : -1;
+  drawReplayFrame(_liveRecordCtx, 540, 540, step, clickedCell);
+  if (_liveRecordVTrack && _liveRecordVTrack.requestFrame) _liveRecordVTrack.requestFrame();
+}
+
+// Called when replay finishes or is stopped
+function stopLiveRecording() {
+  if (_liveRecorder && _liveRecorder.state === 'recording') {
+    // Hold final frame briefly then stop
+    setTimeout(() => {
+      if (_liveRecorder && _liveRecorder.state === 'recording') {
+        _liveRecorder.stop();
+      }
+    }, 600);
+  }
 }
 
 function buildShareText() {
@@ -2125,60 +2218,6 @@ function buildShareText() {
     `🎵 Hear my solution:`,
     replayURL,
   ].join('\n');
-}
-
-async function recordReplayAsVideo() {
-  const canvas = document.createElement('canvas');
-  const W = 540, H = 540;
-  canvas.width = W; canvas.height = H;
-  const ctx = canvas.getContext('2d');
-
-  if (!canvas.captureStream || !window.MediaRecorder) return null;
-
-  const useManualFrames = typeof canvas.captureStream === 'function';
-  const stream = canvas.captureStream(useManualFrames ? 0 : 30);
-  const vTrack = stream.getVideoTracks()[0];
-
-  // Pick best supported codec
-  const codecs = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
-  const mimeType = codecs.find(t => MediaRecorder.isTypeSupported(t));
-  const recorder = mimeType
-    ? new MediaRecorder(stream, { mimeType })
-    : new MediaRecorder(stream);
-
-  const chunks = [];
-  recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
-
-  return new Promise((resolve, reject) => {
-    recorder.onerror = () => resolve(null);
-    recorder.onstop = () => {
-      stream.getTracks().forEach(t => t.stop());
-      const blob = new Blob(chunks, { type: recorder.mimeType || 'video/webm' });
-      resolve(blob);
-    };
-
-    recorder.start();
-    let step = 0;
-
-    // Draw initial frame
-    drawReplayFrame(ctx, W, H, 0, -1);
-    if (vTrack.requestFrame) vTrack.requestFrame();
-
-    function advance() {
-      if (step >= moveHistory.length) {
-        // Hold final frame then stop
-        setTimeout(() => recorder.stop(), 800);
-        return;
-      }
-      step++;
-      const move = moveHistory[step - 1];
-      drawReplayFrame(ctx, W, H, step, move.cellIndex);
-      if (vTrack.requestFrame) vTrack.requestFrame();
-      setTimeout(advance, 450);
-    }
-    // Start after brief pause
-    setTimeout(advance, 500);
-  });
 }
 
 async function generateReplayImage() {
