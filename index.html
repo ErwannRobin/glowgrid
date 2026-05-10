@@ -872,7 +872,7 @@ body {
   <div class="grid" id="grid" role="grid" aria-label="GlowGrid puzzle"></div>
 
   <div class="actions">
-    <button class="btn" onclick="resetPuzzle()">↺ Reset</button>
+    <button class="btn" onclick="confirmReset()">↺ Reset</button>
     <button class="btn btn-hint" id="btn-hint" onclick="requestHint()" disabled title="Available when 3 or fewer cells remain off">💡 Hint</button>
   </div>
 
@@ -2019,6 +2019,12 @@ function checkWin() {
   showWinOverlay({ streakUpdated });
   playWin();
   spawnParticles();
+
+  // Push win state to browser history so back button can restore it
+  const puzzleNum = puzzleNumberFromKey(currentDateKey);
+  const replayEncoded = encodeMoves(moveHistory);
+  const winUrl = `${location.pathname}?p=${puzzleNum}&r=${replayEncoded}&own=1`;
+  history.pushState({ win: true }, '', winUrl);
 }
 
 // ── Share ─────────────────────────────────────────────────────
@@ -2367,6 +2373,13 @@ function resetPuzzle() {
   buildGrid();
   document.getElementById('moves-val').textContent = moves;
   checkStuck();
+  // Clean URL if it has win params
+  if (location.search) history.replaceState({}, '', location.pathname);
+}
+
+function confirmReset() {
+  if (moves === 0) { resetPuzzle(); return; }
+  if (confirm('Reset the puzzle? Your progress will be lost.')) resetPuzzle();
 }
 
 function loadCurrentPuzzle() {
@@ -2428,6 +2441,41 @@ if (_replayParam && _puzzleNum > 0) {
 } else {
   loadCurrentPuzzle();
 }
+
+// Handle browser back/forward to restore win screen
+window.addEventListener('popstate', () => {
+  const params = new URLSearchParams(location.search);
+  const r = params.get('r');
+  const p = parseInt(params.get('p'), 10);
+  const own = params.get('own') === '1';
+
+  if (r && p > 0 && own) {
+    const dateKey = keyFromPuzzleNumber(p);
+    currentDateKey = dateKey;
+    generatePuzzleForKey(dateKey);
+    clickCounts = new Array(SIZE * SIZE).fill(0);
+    moveHistory = [];
+    const chars = r.split('');
+    for (const ch of chars) {
+      const code = ch.charCodeAt(0);
+      const isHint = code >= 97;
+      const idx = code - (isHint ? 97 : 65);
+      if (idx < 0 || idx >= SIZE * SIZE) continue;
+      moveHistory.push({ cellIndex: idx, cellWasOn: state[idx], isHint });
+      clickCounts[idx]++;
+      applyToggle(idx);
+    }
+    moves = moveHistory.length;
+    hintsUsed = moveHistory.filter(m => m.isHint).length;
+    buildGrid();
+    refreshStreakDisplay();
+    showWinOverlay({});
+  } else {
+    // Back to game
+    document.getElementById('win-overlay').classList.remove('visible');
+    resetReplayState();
+  }
+});
 
 // Register service worker for offline support
 if ('serviceWorker' in navigator) {
