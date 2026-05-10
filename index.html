@@ -2407,10 +2407,32 @@ const _puzzleNum   = parseInt(_params.get('p'), 10);
 
 if (_replayParam && _puzzleNum > 0) {
   const _replayDate = keyFromPuzzleNumber(_puzzleNum);
+  const _ownMode = _params.get('own') === '1';
   if (compareDateKeys(_replayDate, todayKey()) > 0) {
     // Future puzzle — refuse and load today
     history.replaceState({}, '', location.pathname);
     loadCurrentPuzzle();
+  } else if (_ownMode) {
+    // Own-mode: simulate playing the game then show win screen as if you solved it
+    currentDateKey = _replayDate;
+    generatePuzzleForKey(_replayDate);
+    clickCounts = new Array(SIZE * SIZE).fill(0);
+    moveHistory = [];
+    const chars = _replayParam.split('');
+    for (const ch of chars) {
+      const code = ch.charCodeAt(0);
+      const isHint = code >= 97;
+      const idx = code - (isHint ? 97 : 65);
+      if (idx < 0 || idx >= SIZE * SIZE) continue;
+      moveHistory.push({ cellIndex: idx, cellWasOn: state[idx], isHint });
+      clickCounts[idx]++;
+      applyToggle(idx);
+    }
+    moves = moveHistory.length;
+    hintsUsed = moveHistory.filter(m => m.isHint).length;
+    buildGrid();
+    refreshStreakDisplay();
+    checkWin(); // triggers the win overlay as your own game
   } else {
     enterReplayMode(_replayDate, _replayParam);
   }
