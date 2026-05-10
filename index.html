@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <meta name="theme-color" content="#3b82f6" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <link rel="canonical" href="https://glowgrid.netlify.app/" />
 <link rel="manifest" href="manifest.json" />
@@ -892,7 +892,7 @@ body {
     </div>
     <div class="win-grid" id="win-grid"></div>
     <div class="replay-bar" id="replay-bar">
-      <button class="replay-play-btn" id="replay-play-btn" onclick="toggleReplayPlayback()">▶</button>
+      <button class="replay-play-btn" id="replay-play-btn" onclick="toggleReplayPlayback()"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><polygon points="6,3 20,12 6,21"/></svg></button>
       <div class="replay-track" id="replay-track" onmousedown="startDrag(event.clientX)" ontouchstart="startDrag(event.touches[0].clientX)">
         <div class="replay-track-fill" id="replay-track-fill"></div>
       </div>
@@ -902,7 +902,7 @@ body {
     <div class="win-streak" id="win-streak" style="display:none"></div>
     <div class="win-actions">
       <button class="btn-share" id="btn-share" onclick="shareResult()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share</button>
-      <button class="btn-play-again" id="btn-try-again" onclick="resetPuzzle()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-11.36L3 10"/></svg> Replay</button>
+      <button class="btn-play-again" id="btn-try-again" onclick="resetPuzzle()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-11.36L3 10"/></svg> Play again</button>
     </div>
   </div>
 </div>
@@ -1698,7 +1698,9 @@ function updateReplayUI() {
   const btn = document.getElementById('replay-play-btn');
 
   fill.style.width = total > 0 ? `${(_replayStep / total) * 100}%` : '0%';
-  btn.innerHTML = _replayPlaying ? '<span style="font-size:20px;line-height:1">⏸</span>' : '▶';
+  btn.innerHTML = _replayPlaying
+    ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="white"><rect x="5" y="3" width="5" height="18" rx="1"/><rect x="14" y="3" width="5" height="18" rx="1"/></svg>'
+    : '<svg width="18" height="18" viewBox="0 0 24 24" fill="white"><polygon points="6,3 20,12 6,21"/></svg>';
 }
 
 function renderReplayStep(step) {
@@ -1994,7 +1996,7 @@ function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
     tryBtn.innerHTML = '🎮 Try yourself';
     tryBtn.onclick = tryYourself;
   } else {
-    tryBtn.innerHTML = retrySvg + ' Replay';
+    tryBtn.innerHTML = retrySvg + ' Play again';
     tryBtn.onclick = resetPuzzle;
   }
 
@@ -2016,15 +2018,15 @@ function checkWin() {
   const streakUpdated = tryUpdateStreak();
   refreshStreakDisplay();
 
-  showWinOverlay({ streakUpdated });
-  playWin();
-  spawnParticles();
-
   // Push win state to browser history so back button can restore it
   const puzzleNum = puzzleNumberFromKey(currentDateKey);
   const replayEncoded = encodeMoves(moveHistory);
   const winUrl = `${location.pathname}?p=${puzzleNum}&r=${replayEncoded}&own=1`;
   history.pushState({ win: true }, '', winUrl);
+
+  showWinOverlay({ streakUpdated });
+  playWin();
+  spawnParticles();
 }
 
 // ── Share ─────────────────────────────────────────────────────
@@ -2373,8 +2375,8 @@ function resetPuzzle() {
   buildGrid();
   document.getElementById('moves-val').textContent = moves;
   checkStuck();
-  // Clean URL if it has win params
-  if (location.search) history.replaceState({}, '', location.pathname);
+  // Push clean URL so the win entry stays in history for back navigation
+  if (location.search) history.pushState({}, '', location.pathname);
 }
 
 function confirmReset() {
