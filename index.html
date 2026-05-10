@@ -1882,34 +1882,28 @@ let isReplayMode = false; // true when viewing a shared replay URL
 
 function renderHeatmapAtStep(step) {
   const winGrid = document.getElementById('win-grid');
-  const heatColors = [
-    'rgba(255,255,255,0.04)',
-    '#bfdbfe',
-    '#60a5fa',
-    '#2563eb',
-    '#1e40af',
-    '#1e3a8a',
-  ];
-  const glows = [
-    'none',
-    '0 0 6px rgba(191,219,254,0.5)',
-    '0 0 8px rgba(96,165,250,0.55)',
-    '0 0 8px rgba(37,99,235,0.6)',
-    '0 0 9px rgba(30,64,175,0.65)',
-    '0 0 10px rgba(30,58,138,0.7)',
-  ];
   // Count clicks up to this step
   const counts = new Array(SIZE * SIZE).fill(0);
   for (let i = 0; i < step; i++) {
     counts[moveHistory[i].cellIndex]++;
   }
+  const maxCount = Math.max(1, ...counts);
   const gridCells = winGrid.querySelectorAll('.win-grid-cell');
   gridCells.forEach((c, i) => {
     const n = counts[i];
-    const level = Math.min(n, heatColors.length - 1);
     c.className = 'win-grid-cell';
-    c.style.background = heatColors[level];
-    c.style.boxShadow = glows[level];
+    if (n === 0) {
+      c.style.background = 'rgba(255,255,255,0.04)';
+      c.style.boxShadow = 'none';
+      c.style.borderColor = '';
+    } else {
+      const row = Math.floor(i / SIZE), col = i % SIZE;
+      const hue = (180 + col * 40 + row * 50) % 360;
+      const intensity = 0.3 + 0.7 * (n / maxCount);
+      c.style.background = `hsl(${hue}, 75%, ${58 + (1 - intensity) * 15}%)`;
+      c.style.boxShadow = `0 0 ${6 + intensity * 8}px hsla(${hue}, 75%, 58%, ${intensity * 0.6})`;
+      c.style.borderColor = `hsla(${hue}, 75%, 70%, ${intensity * 0.5})`;
+    }
     c.textContent = n > 0 ? n : '';
   });
 }
@@ -2163,7 +2157,8 @@ function startLiveRecording() {
       const blob = new Blob(_liveRecordChunks, { type: _liveRecorder.mimeType || 'video/webm' });
       if (blob.size > 0) {
         const ext = (blob.type || '').includes('mp4') ? 'mp4' : 'webm';
-        _preparedShareFile = new File([blob], `glowgrid-replay.${ext}`, { type: blob.type });
+        const pNum = puzzleNumberFromKey(currentDateKey);
+        _preparedShareFile = new File([blob], `glowgrid-replay-${pNum}.${ext}`, { type: blob.type });
       }
       _liveRecorder = null;
     };
@@ -2200,12 +2195,26 @@ function stopLiveRecording() {
 
 function buildShareText() {
   const num = puzzleNumberFromKey(currentDateKey);
-  const dateStr = formatDateLabel(currentDateKey);
+  const dateStr = dateFromKey(currentDateKey).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const rows = [];
+  // Map cell hues to colored square emojis
+  const hueToEmoji = (hue) => {
+    if (hue >= 330 || hue < 15)  return '🟥'; // red
+    if (hue < 45)  return '🟧'; // orange
+    if (hue < 75)  return '🟨'; // yellow
+    if (hue < 165) return '🟩'; // green
+    if (hue < 255) return '🟦'; // blue
+    return '🟪'; // purple/pink
+  };
   for (let r = 0; r < SIZE; r++) {
     let row = '';
     for (let c = 0; c < SIZE; c++) {
-      row += clickCounts[r * SIZE + c] === 0 ? '⬛' : '🟦';
+      if (clickCounts[r * SIZE + c] === 0) {
+        row += '⬛';
+      } else {
+        const hue = (180 + c * 40 + r * 50) % 360;
+        row += hueToEmoji(hue);
+      }
     }
     rows.push(row);
   }
@@ -2216,9 +2225,10 @@ function buildShareText() {
   const puzzleNum = puzzleNumberFromKey(currentDateKey);
   const replayURL = `${location.origin}${location.pathname}?p=${puzzleNum}&r=${replayEncoded}`;
   return [
-    `GlowGrid #${num} · ${dateStr} ✨`,
+    `Here is my result for GlowGrid #${num} · ${dateStr} ✨`,
     ...rows,
-    `Solved in ${moves} move${moves === 1 ? '' : 's'}${streakSuffix}${hintSuffix}`,
+    `Solved in ${moves} move${moves === 1 ? '' : 's'}${hintSuffix}${streakSuffix}`,
+    `Can you do better?`,
     '',
     `🎵 Hear my solution:`,
     replayURL,
@@ -2230,8 +2240,59 @@ async function generateReplayImage() {
   const W = 540, H = 540;
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
-  drawReplayFrame(ctx, W, H, moveHistory.length, -1);
+  drawHeatmapFrame(ctx, W, H);
   return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+}
+
+function drawHeatmapFrame(ctx, W, H) {
+  const cellSize = 80, gap = 8;
+  const gridW = SIZE * cellSize + (SIZE - 1) * gap;
+  const gridX = (W - gridW) / 2;
+  const gridY = (H - gridW) / 2 + 20;
+
+  // Background
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Title
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 26px system-ui, -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  const num = puzzleNumberFromKey(currentDateKey);
+  ctx.fillText(`GlowGrid #${num}`, W / 2, 46);
+
+  const maxCount = Math.max(1, ...clickCounts);
+
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    const row = Math.floor(i / SIZE), col = i % SIZE;
+    const x = gridX + col * (cellSize + gap);
+    const y = gridY + row * (cellSize + gap);
+    const hue = (180 + col * 40 + row * 50) % 360;
+    const n = clickCounts[i];
+
+    _canvasRoundRect(ctx, x, y, cellSize, cellSize, 12);
+
+    if (n > 0) {
+      const intensity = 0.3 + 0.7 * (n / maxCount);
+      const light = 58 + (1 - intensity) * 15;
+      ctx.fillStyle = `hsl(${hue}, 75%, ${light}%)`;
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    }
+    ctx.fill();
+
+    ctx.strokeStyle = n > 0 ? `hsla(${hue}, 75%, 70%, 0.5)` : 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    if (n > 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.font = 'bold 24px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(n, x + cellSize / 2, y + cellSize / 2);
+    }
+  }
 }
 
 async function shareResult() {
