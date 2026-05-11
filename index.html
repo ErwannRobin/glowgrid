@@ -2909,9 +2909,9 @@ if (_replayParam && _puzzleNum > 0) {
     if (state.every(v => v)) {
       checkWin(); // triggers the win overlay as your own game
     } else {
-      // Replay doesn't solve this puzzle (tampered URL) — load normally
+      // Replay doesn't solve this puzzle — load the puzzle from p param
       history.replaceState({}, '', location.pathname);
-      currentDateKey = todayKey();
+      currentDateKey = _replayDate;
       loadCurrentPuzzle();
     }
   } else {
@@ -2952,9 +2952,8 @@ window.addEventListener('popstate', () => {
     if (state.every(v => v)) {
       showWinOverlay({});
     } else {
-      // Tampered URL — dismiss
+      // Tampered URL — load the puzzle from p param
       history.replaceState({}, '', location.pathname);
-      currentDateKey = todayKey();
       loadCurrentPuzzle();
     }
   } else {
