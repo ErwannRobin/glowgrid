@@ -940,7 +940,7 @@ body {
 <div class="container">
 
   <div>
-    <a class="title" href="./" style="text-decoration:none">GlowGrid</a>
+    <a class="title" href="./index.html" style="text-decoration:none">GlowGrid</a>
     <div class="subtitle">Light them all</div>
   </div>
 
@@ -2894,7 +2894,14 @@ if (_replayParam && _puzzleNum > 0) {
     hintsUsed = moveHistory.filter(m => m.isHint).length;
     buildGrid();
     refreshStreakDisplay();
-    checkWin(); // triggers the win overlay as your own game
+    if (state.every(v => v)) {
+      checkWin(); // triggers the win overlay as your own game
+    } else {
+      // Replay doesn't solve this puzzle (tampered URL) — load normally
+      history.replaceState({}, '', location.pathname);
+      currentDateKey = todayKey();
+      loadCurrentPuzzle();
+    }
   } else {
     enterReplayMode(_replayDate, _replayParam);
   }
@@ -2930,7 +2937,14 @@ window.addEventListener('popstate', () => {
     hintsUsed = moveHistory.filter(m => m.isHint).length;
     buildGrid();
     refreshStreakDisplay();
-    showWinOverlay({});
+    if (state.every(v => v)) {
+      showWinOverlay({});
+    } else {
+      // Tampered URL — dismiss
+      history.replaceState({}, '', location.pathname);
+      currentDateKey = todayKey();
+      loadCurrentPuzzle();
+    }
   } else {
     // Back to game
     document.getElementById('win-overlay').classList.remove('visible');
