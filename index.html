@@ -773,6 +773,7 @@ body {
   right: 16px;
   z-index: 50;
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 8px;
 }
@@ -935,6 +936,7 @@ body {
 <!-- Sound controls (top-right) -->
 <div class="sound-ctrl" id="sound-ctrl">
   <button class="sound-toggle" id="sound-toggle" onclick="toggleSound()" aria-label="Toggle sound" title="Toggle sound"><svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" opacity="0"/></svg></button>
+  <button class="sound-toggle" id="music-toggle" onclick="toggleMusicMode()" aria-label="Toggle melodic sound" title="Melodic mode: consistent pitch"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z"/></svg></button>
 </div>
 
 <div class="container">
@@ -1784,6 +1786,7 @@ function hapticImpact() {
 let _audioCtx = null;
 let _audioUnlocked = false;
 let soundEnabled = localStorage.getItem('gg_sound') !== 'off';
+let songModeAudio = isSongMode || localStorage.getItem('gg_music_mode') === 'on';
 let _masterGain = null;       // all sounds route through this
 let _recordingDest = null;    // MediaStreamDestination for video recording
 
@@ -1854,11 +1857,20 @@ function initSoundUI() {
     ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zm3.5 0c0-3.07-1.64-5.64-4-7.09v2.09c1.48 1.14 2.5 2.93 2.5 5s-1.02 3.86-2.5 5v2.09c2.36-1.45 4-4.02 4-7.09z"/></svg>'
     : '<svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" opacity="0"/><line x1="18" y1="9" x2="22" y2="15" stroke="white" stroke-width="2"/><line x1="22" y1="9" x2="18" y2="15" stroke="white" stroke-width="2"/></svg>';
   btn.classList.toggle('sound-on', soundEnabled);
+
+  const musicBtn = document.getElementById('music-toggle');
+  musicBtn.classList.toggle('sound-on', songModeAudio);
 }
 
 function toggleSound() {
   soundEnabled = !soundEnabled;
   localStorage.setItem('gg_sound', soundEnabled ? 'on' : 'off');
+  initSoundUI();
+}
+
+function toggleMusicMode() {
+  songModeAudio = !songModeAudio;
+  localStorage.setItem('gg_music_mode', songModeAudio ? 'on' : 'off');
   initSoundUI();
 }
 
@@ -1877,16 +1889,16 @@ function playGlassClick(cellIndex, cellWasOn) {
     const ctx       = _getCtx();
     const now       = ctx.currentTime;
     const freq      = cellFreq(cellIndex);
-    // In song mode, use consistent pitch regardless of ON/OFF state
-    const glassFreq = isSongMode ? freq * 2.0 : (cellWasOn ? freq * 1.8 : freq * 2.2);
-    const decay     = isSongMode ? 1.0 : (cellWasOn ? 0.8 : 1.2);
+    // In melodic mode, use consistent pitch regardless of ON/OFF state
+    const glassFreq = songModeAudio ? freq * 2.0 : (cellWasOn ? freq * 1.8 : freq * 2.2);
+    const decay     = songModeAudio ? 1.0 : (cellWasOn ? 0.8 : 1.2);
 
     const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain); gain.connect(_audioDest());
     osc.type = 'sine';
     osc.frequency.setValueAtTime(glassFreq, now);
-    gain.gain.setValueAtTime(isSongMode ? 0.09 : (cellWasOn ? 0.07 : 0.09), now);
+    gain.gain.setValueAtTime(songModeAudio ? 0.09 : (cellWasOn ? 0.07 : 0.09), now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + decay);
     osc.start(now); osc.stop(now + decay + 0.1);
 
@@ -1895,7 +1907,7 @@ function playGlassClick(cellIndex, cellWasOn) {
     osc2.connect(gain2); gain2.connect(_audioDest());
     osc2.type = 'sine';
     osc2.frequency.setValueAtTime(glassFreq * 2.756, now);
-    gain2.gain.setValueAtTime(isSongMode ? 0.03 : (cellWasOn ? 0.02 : 0.03), now);
+    gain2.gain.setValueAtTime(songModeAudio ? 0.03 : (cellWasOn ? 0.02 : 0.03), now);
     gain2.gain.exponentialRampToValueAtTime(0.001, now + decay * 0.5);
     osc2.start(now); osc2.stop(now + decay * 0.5 + 0.1);
   } catch (_) {}
@@ -1911,12 +1923,12 @@ function playMusicalClick(cellIndex, cellWasOn) {
     const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain); gain.connect(_audioDest());
-    osc.type = isSongMode ? 'sine' : (cellWasOn ? 'sine' : 'triangle');
+    osc.type = songModeAudio ? 'sine' : (cellWasOn ? 'sine' : 'triangle');
     osc.frequency.setValueAtTime(freq, now);
-    osc.frequency.exponentialRampToValueAtTime(freq * (isSongMode ? 1.0 : 0.92), now + 0.12);
+    osc.frequency.exponentialRampToValueAtTime(freq * (songModeAudio ? 1.0 : 0.92), now + 0.12);
     gain.gain.setValueAtTime(0, now);
     gain.gain.linearRampToValueAtTime(0.14, now + 0.008);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + (isSongMode ? 0.25 : (cellWasOn ? 0.18 : 0.28)));
+    gain.gain.exponentialRampToValueAtTime(0.001, now + (songModeAudio ? 0.25 : (cellWasOn ? 0.18 : 0.28)));
     osc.start(now); osc.stop(now + 0.35);
   } catch (_) {}
 }
