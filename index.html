@@ -1755,15 +1755,16 @@ function playGlassClick(cellIndex, cellWasOn) {
     const ctx       = _getCtx();
     const now       = ctx.currentTime;
     const freq      = cellFreq(cellIndex);
-    const glassFreq = cellWasOn ? freq * 1.8 : freq * 2.2;
-    const decay     = cellWasOn ? 0.8 : 1.2;
+    // In song mode, use consistent pitch regardless of ON/OFF state
+    const glassFreq = isSongMode ? freq * 2.0 : (cellWasOn ? freq * 1.8 : freq * 2.2);
+    const decay     = isSongMode ? 1.0 : (cellWasOn ? 0.8 : 1.2);
 
     const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain); gain.connect(_audioDest());
     osc.type = 'sine';
     osc.frequency.setValueAtTime(glassFreq, now);
-    gain.gain.setValueAtTime(cellWasOn ? 0.07 : 0.09, now);
+    gain.gain.setValueAtTime(isSongMode ? 0.09 : (cellWasOn ? 0.07 : 0.09), now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + decay);
     osc.start(now); osc.stop(now + decay + 0.1);
 
@@ -1772,7 +1773,7 @@ function playGlassClick(cellIndex, cellWasOn) {
     osc2.connect(gain2); gain2.connect(_audioDest());
     osc2.type = 'sine';
     osc2.frequency.setValueAtTime(glassFreq * 2.756, now);
-    gain2.gain.setValueAtTime(cellWasOn ? 0.02 : 0.03, now);
+    gain2.gain.setValueAtTime(isSongMode ? 0.03 : (cellWasOn ? 0.02 : 0.03), now);
     gain2.gain.exponentialRampToValueAtTime(0.001, now + decay * 0.5);
     osc2.start(now); osc2.stop(now + decay * 0.5 + 0.1);
   } catch (_) {}
@@ -1788,12 +1789,12 @@ function playMusicalClick(cellIndex, cellWasOn) {
     const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain); gain.connect(_audioDest());
-    osc.type = cellWasOn ? 'sine' : 'triangle';
+    osc.type = isSongMode ? 'sine' : (cellWasOn ? 'sine' : 'triangle');
     osc.frequency.setValueAtTime(freq, now);
-    osc.frequency.exponentialRampToValueAtTime(freq * 0.92, now + 0.12);
+    osc.frequency.exponentialRampToValueAtTime(freq * (isSongMode ? 1.0 : 0.92), now + 0.12);
     gain.gain.setValueAtTime(0, now);
     gain.gain.linearRampToValueAtTime(0.14, now + 0.008);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + (cellWasOn ? 0.18 : 0.28));
+    gain.gain.exponentialRampToValueAtTime(0.001, now + (isSongMode ? 0.25 : (cellWasOn ? 0.18 : 0.28)));
     osc.start(now); osc.stop(now + 0.35);
   } catch (_) {}
 }
