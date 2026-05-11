@@ -356,10 +356,9 @@ body {
 
 .btn:active { transform: scale(0.96); }
 
-.btn:disabled {
+.btn:disabled, .btn[aria-disabled="true"] {
   opacity: 0.3;
-  cursor: not-allowed;
-  pointer-events: none;
+  cursor: default;
 }
 
 @keyframes hint-pulse {
@@ -875,7 +874,7 @@ body {
 
   <div class="actions">
     <button class="btn" onclick="confirmReset()">↺ Reset</button>
-    <button class="btn btn-hint" id="btn-hint" onclick="requestHint()" disabled title="Available when 3 or fewer cells remain off">💡 Hint</button>
+    <button class="btn btn-hint" id="btn-hint" aria-disabled="true" title="Available when 3 or fewer cells remain off">💡 Hint (H)</button>
   </div>
 
   <div class="hint-info" id="hint-info"></div>
@@ -1183,26 +1182,31 @@ function checkStuck() {
   const btn = btn_hint();
   btn.classList.remove('hint-ready');
 
-  if (state.every(v => v)) { btn.disabled = true; return; }
+  if (state.every(v => v)) { btn.setAttribute('aria-disabled', 'true'); return; }
 
   // Once the user has used any hint, keep the button permanently enabled
   if (hintsUsed > 0) {
-    btn.disabled = false;
+    btn.setAttribute('aria-disabled', 'false');
     return;
   }
 
   // First hint: only unlock when ≤3 cells are OFF, after 20s idle
   const off = state.filter(v => !v).length;
   if (off > 0 && off <= 3) {
-    btn.disabled = false;
+    btn.setAttribute('aria-disabled', 'false');
     stuckTimer = setTimeout(() => btn.classList.add('hint-ready'), STUCK_DELAY);
   } else {
-    btn.disabled = true;
+    btn.setAttribute('aria-disabled', 'true');
   }
 }
 
 function requestHint() {
   if (state.every(v => v)) return;
+
+  if (btn_hint().getAttribute('aria-disabled') === 'true') {
+    showToast('Available when 3 or fewer cells remain off');
+    return;
+  }
 
   // Compute solution path once per game-state; recomputed after any move (hintPath=null)
   if (!hintPath) {
@@ -1223,6 +1227,8 @@ function requestHint() {
   clearHintHighlight();
   activeHintCell = hintPath[hintStep];
   cells[activeHintCell].classList.add('hint-highlight');
+  cells[activeHintCell].focus();
+  previewCells(activeHintCell);
   hintsUsed++;
   hintStep++;
 
@@ -1244,6 +1250,9 @@ function updateHintInfo() {
 }
 
 function btn_hint() { return document.getElementById('btn-hint'); }
+
+// Hint button uses aria-disabled instead of native disabled so clicks always fire
+document.getElementById('btn-hint').addEventListener('click', () => requestHint());
 
 // ── Rendering ────────────────────────────────────────────────
 
@@ -1434,8 +1443,44 @@ function handleKey(e, i) {
   if (e.key === 'ArrowLeft'  && x > 0)        next = i - 1;
   if (e.key === 'ArrowDown'  && y < SIZE - 1) next = i + SIZE;
   if (e.key === 'ArrowUp'    && y > 0)        next = i - SIZE;
-  if (next >= 0) { e.preventDefault(); cells[next].focus(); }
+  if (next >= 0) {
+    e.preventDefault();
+    cells[next].focus();
+    previewCells(next);
+    playHoverSound(next, state[next]);
+  }
 }
+
+// ── Global keyboard shortcuts ─────────────────────────────────
+document.addEventListener('keydown', e => {
+  // Ignore when win overlay is visible or an input is focused
+  if (document.getElementById('win-overlay').classList.contains('visible')) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  if (e.key === 'h' || e.key === 'H') {
+    e.preventDefault();
+    requestHint();
+    return;
+  }
+
+  if (e.key === 'Enter' && activeHintCell >= 0) {
+    e.preventDefault();
+    handleClick(activeHintCell, cells[activeHintCell]);
+    return;
+  }
+
+  // Arrow keys: move focus between cells (start from cell 12 if none focused)
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+    const active = document.activeElement;
+    const idx = cells.indexOf(active);
+    if (idx === -1) {
+      e.preventDefault();
+      cells[12].focus();
+      previewCells(12);
+      playHoverSound(12, state[12]);
+    }
+  }
+});
 
 // ── Puzzle generation ─────────────────────────────────────────
 // Start from all-ON and shuffle — guarantees solvability.
@@ -2009,7 +2054,7 @@ function checkWin() {
   if (!state.every(v => v)) return;
 
   resetHintState();
-  btn_hint().disabled = true;
+  btn_hint().setAttribute('aria-disabled', 'true');
 
   const streakUpdated = tryUpdateStreak();
   refreshStreakDisplay();
