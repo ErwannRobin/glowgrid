@@ -842,7 +842,7 @@ body {
 
 <!-- Sound controls (top-right) -->
 <div class="sound-ctrl" id="sound-ctrl">
-  <button class="sound-toggle" id="sound-toggle" onclick="toggleSound()" aria-label="Toggle sound" title="Toggle sound">🔇</button>
+  <button class="sound-toggle" id="sound-toggle" onclick="toggleSound()" aria-label="Toggle sound" title="Toggle sound"><svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" opacity="0"/></svg></button>
 </div>
 
 <div class="container">
@@ -874,7 +874,7 @@ body {
 
   <div class="actions">
     <button class="btn" onclick="confirmReset()">↺ Reset</button>
-    <button class="btn btn-hint" id="btn-hint" aria-disabled="true" title="Available when 3 or fewer cells remain off">💡 Hint (H)</button>
+    <button class="btn btn-hint" id="btn-hint" aria-disabled="true" title="Available when 3 or fewer cells remain off"><svg width="16" height="16" viewBox="0 0 24 24" fill="white" style="vertical-align:-2px"><path d="M9 21h6v-1H9v1zm3-19a7 7 0 00-4.95 11.95c.82.82 1.45 1.7 1.71 2.55h6.48c.26-.85.89-1.73 1.71-2.55A7 7 0 0012 2zm2.5 14h-5v-1.05c-.28-.9-1.05-1.95-1.97-2.87a5.5 5.5 0 119.94 0c-.92.92-1.69 1.97-1.97 2.87V16zm-5 2h5v1H9.5v-1z"/></svg> Hint (H)</button>
   </div>
 
   <div class="hint-info" id="hint-info"></div>
@@ -1602,7 +1602,9 @@ document.addEventListener('click',      _unlockAudio, { passive: true });
 
 function initSoundUI() {
   const btn = document.getElementById('sound-toggle');
-  btn.textContent = soundEnabled ? '🔊' : '🔇';
+  btn.innerHTML = soundEnabled
+    ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zm3.5 0c0-3.07-1.64-5.64-4-7.09v2.09c1.48 1.14 2.5 2.93 2.5 5s-1.02 3.86-2.5 5v2.09c2.36-1.45 4-4.02 4-7.09z"/></svg>'
+    : '<svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" opacity="0"/><line x1="18" y1="9" x2="22" y2="15" stroke="white" stroke-width="2"/><line x1="22" y1="9" x2="18" y2="15" stroke="white" stroke-width="2"/></svg>';
   btn.classList.toggle('sound-on', soundEnabled);
 }
 
@@ -2593,7 +2595,7 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
-<footer class="footer">vibe coded with ❤️ by <a href="http://erwann.lovable.app" target="_blank" rel="noopener">Erwann</a></footer>
+<footer class="footer">vibe coded with <svg width="14" height="14" viewBox="0 0 24 24" fill="white" style="vertical-align:-2px"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg> by <a href="http://erwann.lovable.app" target="_blank" rel="noopener">Erwann</a></footer>
 
 </body>
 </html>
