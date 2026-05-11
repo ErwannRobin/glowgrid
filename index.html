@@ -933,6 +933,108 @@ let activeHintCell = -1;  // currently highlighted cell (-1 = none)
 let stuckTimer = null;    // setTimeout handle for stuck detection
 const STUCK_DELAY = 20000; // 20s idle with ≤3 cells OFF → pulse hint button
 
+// ── Song Challenge Mode ──────────────────────────────────────
+
+// Cell mapping: col = note (C=0 D=1 E=2 G=3 A=4), row = octave multiplier
+// Row 0 (×0.5): C3=0  D3=1  E3=2  G3=3  A3=4
+// Row 2 (×1.0): C4=10 D4=11 E4=12 G4=13 A4=14
+// Row 4 (×2.0): C5=20 D5=21 E5=22 G5=23 A5=24
+
+const SONGS = {
+  'amazing-grace': {
+    title: 'Amazing Grace',
+    bpm: 70,
+    // G3 C4 E4 C4 E4 D4 C4 A3 G3
+    melody: [
+      { cell: 3,  beats: 1 },
+      { cell: 10, beats: 1.5 },
+      { cell: 12, beats: 0.5 },
+      { cell: 10, beats: 1 },
+      { cell: 12, beats: 1.5 },
+      { cell: 11, beats: 0.5 },
+      { cell: 10, beats: 1 },
+      { cell: 4,  beats: 1 },
+      { cell: 3,  beats: 2 },
+    ],
+    startState: [1,1,0,1,1, 1,0,0,0,0, 0,0,1,0,1, 1,0,1,0,1, 1,1,1,1,1].map(Boolean),
+  },
+  'mary': {
+    title: 'Mary Had a Little Lamb',
+    bpm: 120,
+    // E4 D4 C4 D4 | E4 E4 E4 | D4 D4 D4 | E4 G4 G4
+    melody: [
+      { cell: 12, beats: 1 },
+      { cell: 11, beats: 1 },
+      { cell: 10, beats: 1 },
+      { cell: 11, beats: 1 },
+      { cell: 12, beats: 1 },
+      { cell: 12, beats: 1 },
+      { cell: 12, beats: 2 },
+      { cell: 11, beats: 1 },
+      { cell: 11, beats: 1 },
+      { cell: 11, beats: 2 },
+      { cell: 12, beats: 1 },
+      { cell: 13, beats: 1 },
+      { cell: 13, beats: 2 },
+    ],
+    startState: [1,1,1,1,1, 1,1,0,0,0, 0,0,1,0,0, 1,1,0,0,0, 1,1,1,1,1].map(Boolean),
+  },
+  'hot-cross-buns': {
+    title: 'Hot Cross Buns',
+    bpm: 110,
+    // E4 D4 C4 | E4 D4 C4 | C3 C4 C5 C3 | D3 D4 D5 D3 | E4 D4 C4
+    melody: [
+      { cell: 12, beats: 1 },
+      { cell: 11, beats: 1 },
+      { cell: 10, beats: 2 },
+      { cell: 12, beats: 1 },
+      { cell: 11, beats: 1 },
+      { cell: 10, beats: 2 },
+      { cell: 0,  beats: 0.5 },
+      { cell: 10, beats: 0.5 },
+      { cell: 20, beats: 0.5 },
+      { cell: 0,  beats: 0.5 },
+      { cell: 1,  beats: 0.5 },
+      { cell: 11, beats: 0.5 },
+      { cell: 21, beats: 0.5 },
+      { cell: 1,  beats: 0.5 },
+      { cell: 12, beats: 1 },
+      { cell: 11, beats: 1 },
+      { cell: 10, beats: 2 },
+    ],
+    startState: [0,0,0,1,1, 1,1,1,1,1, 1,0,0,0,1, 0,0,1,1,1, 0,0,1,1,1].map(Boolean),
+  },
+  'swing-low': {
+    title: 'Swing Low, Sweet Chariot',
+    bpm: 80,
+    // G3 C4 C4 E4 | D4 C4 E4 | D4 C4 A3 G3 | A3 C4 C4 D4 E4
+    melody: [
+      { cell: 3,  beats: 0.5 },
+      { cell: 10, beats: 1 },
+      { cell: 10, beats: 0.5 },
+      { cell: 12, beats: 1.5 },
+      { cell: 11, beats: 0.5 },
+      { cell: 10, beats: 1 },
+      { cell: 12, beats: 1 },
+      { cell: 11, beats: 0.5 },
+      { cell: 10, beats: 1 },
+      { cell: 4,  beats: 0.5 },
+      { cell: 3,  beats: 1.5 },
+      { cell: 4,  beats: 0.5 },
+      { cell: 10, beats: 1 },
+      { cell: 10, beats: 0.5 },
+      { cell: 11, beats: 1 },
+      { cell: 12, beats: 1.5 },
+    ],
+    startState: [1,1,1,0,1, 0,0,1,1,0, 0,1,1,1,1, 0,0,1,0,1, 1,1,1,1,1].map(Boolean),
+  },
+};
+
+// Detect song mode from URL
+const _songParam = new URLSearchParams(location.search).get('song');
+const _activeSong = _songParam && SONGS[_songParam] ? SONGS[_songParam] : null;
+const isSongMode = !!_activeSong;
+
 // ── Seeded PRNG (mulberry32) ─────────────────────────────────
 
 function mulberry32(seed) {
@@ -1214,7 +1316,26 @@ function requestHint() {
 
   // Compute solution path once per game-state; recomputed after any move (hintPath=null)
   if (!hintPath) {
-    const path = bidirBFSSolve(state) || greedyHint(state);
+    let path;
+    if (isSongMode) {
+      // In song mode, try to give remaining melody notes from current position
+      // Check how many melody notes match the moves played so far
+      const melodyPath = _activeSong.melody.map(n => n.cell);
+      let matched = 0;
+      for (let i = 0; i < Math.min(moveHistory.length, melodyPath.length); i++) {
+        if (moveHistory[i].cellIndex === melodyPath[i]) matched++;
+        else break;
+      }
+      if (matched === moveHistory.length) {
+        // Player is on the melody path — give remaining notes
+        path = melodyPath.slice(matched);
+      } else {
+        // Player deviated — fall back to BFS solver
+        path = bidirBFSSolve(state) || greedyHint(state);
+      }
+    } else {
+      path = bidirBFSSolve(state) || greedyHint(state);
+    }
     if (!path || path.length === 0) {
       showToast('No hint found — try a different move');
       return;
@@ -1770,6 +1891,17 @@ function scheduleNextReplayStep() {
     stopLiveRecording();
     return;
   }
+
+  // In song mode, use beat-based intervals from the melody data
+  let interval = REPLAY_INTERVAL;
+  if (isSongMode && _activeSong) {
+    const noteIdx = _replayStep; // next note to play
+    if (noteIdx < _activeSong.melody.length) {
+      const beats = _activeSong.melody[noteIdx].beats;
+      interval = (beats * 60 / _activeSong.bpm) * 1000;
+    }
+  }
+
   _replayTimer = setTimeout(() => {
     _replayStep++;
     renderCurrentView(_replayStep);
@@ -1787,7 +1919,7 @@ function scheduleNextReplayStep() {
     }
 
     scheduleNextReplayStep();
-  }, REPLAY_INTERVAL);
+  }, interval);
 }
 
 function toggleReplayPlayback() {
@@ -1991,6 +2123,8 @@ function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
   // Caption
   if (replayMode) {
     document.getElementById('win-caption').textContent = 'Someone shared this replay with you!';
+  } else if (isSongMode) {
+    document.getElementById('win-caption').textContent = `♪ ${_activeSong.title}`;
   } else {
     document.getElementById('win-caption').textContent =
       moves <= 8 ? 'Flawless.' : moves <= 14 ? 'Well played.' : 'Nice one!';
@@ -2062,16 +2196,21 @@ function checkWin() {
   resetHintState();
   btn_hint().setAttribute('aria-disabled', 'true');
 
-  const streakUpdated = tryUpdateStreak();
-  refreshStreakDisplay();
+  if (isSongMode) {
+    // No streak update in song mode
+    showWinOverlay({ streakUpdated: false });
+  } else {
+    const streakUpdated = tryUpdateStreak();
+    refreshStreakDisplay();
 
-  // Push win state to browser history so back button can restore it
-  const puzzleNum = puzzleNumberFromKey(currentDateKey);
-  const replayEncoded = encodeMoves(moveHistory);
-  const winUrl = `${location.pathname}?p=${puzzleNum}&r=${replayEncoded}&own=1`;
-  history.pushState({ win: true }, '', winUrl);
+    // Push win state to browser history so back button can restore it
+    const puzzleNum = puzzleNumberFromKey(currentDateKey);
+    const replayEncoded = encodeMoves(moveHistory);
+    const winUrl = `${location.pathname}?p=${puzzleNum}&r=${replayEncoded}&own=1`;
+    history.pushState({ win: true }, '', winUrl);
 
-  showWinOverlay({ streakUpdated });
+    showWinOverlay({ streakUpdated });
+  }
   playWin();
   spawnParticles();
 }
@@ -2116,8 +2255,8 @@ function drawReplayFrame(ctx, W, H, step, clickedCell) {
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 26px system-ui, -apple-system, sans-serif';
   ctx.textAlign = 'center';
-  const num = puzzleNumberFromKey(currentDateKey);
-  ctx.fillText(`GlowGrid #${num}`, W / 2, 46);
+  const replayTitle = isSongMode ? `♪ ${_activeSong.title}` : `GlowGrid #${puzzleNumberFromKey(currentDateKey)}`;
+  ctx.fillText(replayTitle, W / 2, 46);
 
   // Grid
   const st = _replayStates[step];
@@ -2247,6 +2386,39 @@ function stopLiveRecording() {
 }
 
 function buildShareText() {
+  if (isSongMode) {
+    const rows = [];
+    const hueToEmoji = (hue) => {
+      if (hue >= 330 || hue < 15)  return '🟥';
+      if (hue < 45)  return '🟧';
+      if (hue < 75)  return '🟨';
+      if (hue < 165) return '🟩';
+      if (hue < 255) return '🟦';
+      return '🟪';
+    };
+    for (let r = 0; r < SIZE; r++) {
+      let row = '';
+      for (let c = 0; c < SIZE; c++) {
+        if (clickCounts[r * SIZE + c] === 0) row += '⬛';
+        else {
+          const hue = (180 + c * 40 + r * 50) % 360;
+          row += hueToEmoji(hue);
+        }
+      }
+      rows.push(row);
+    }
+    const hintSuffix = hintsUsed > 0 ? ` (${hintsUsed} hint${hintsUsed > 1 ? 's' : ''})` : '';
+    const songURL = `${location.origin}${location.pathname}?song=${_songParam}`;
+    return [
+      `♪ GlowGrid Song Challenge: ${_activeSong.title} ✨`,
+      ...rows,
+      `Solved in ${moves} move${moves === 1 ? '' : 's'}${hintSuffix}`,
+      `Can you play the melody?`,
+      '',
+      songURL,
+    ].join('\n');
+  }
+
   const num = puzzleNumberFromKey(currentDateKey);
   const dateStr = dateFromKey(currentDateKey).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const rows = [];
@@ -2311,8 +2483,8 @@ function drawHeatmapFrame(ctx, W, H) {
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 26px system-ui, -apple-system, sans-serif';
   ctx.textAlign = 'center';
-  const num = puzzleNumberFromKey(currentDateKey);
-  ctx.fillText(`GlowGrid #${num}`, W / 2, 46);
+  const heatmapTitle = isSongMode ? `♪ ${_activeSong.title}` : `GlowGrid #${puzzleNumberFromKey(currentDateKey)}`;
+  ctx.fillText(heatmapTitle, W / 2, 46);
 
   const maxCount = Math.max(1, ...clickCounts);
 
@@ -2490,7 +2662,13 @@ function resetPuzzle() {
   document.getElementById('moves-val').textContent = moves;
   checkStuck();
   // Push clean URL so the win entry stays in history for back navigation
-  if (location.search) history.pushState({}, '', location.pathname);
+  if (isSongMode) {
+    if (location.search !== `?song=${_songParam}`) {
+      history.pushState({}, '', `${location.pathname}?song=${_songParam}`);
+    }
+  } else if (location.search) {
+    history.pushState({}, '', location.pathname);
+  }
 }
 
 function confirmReset() {
@@ -2518,6 +2696,25 @@ function loadCurrentPuzzle() {
 
 currentDateKey = todayKey();
 initSoundUI();
+
+if (isSongMode) {
+  // Song challenge mode
+  document.querySelector('.date-nav').style.display = 'none';
+  // Hide streak, keep moves
+  document.querySelector('.stats').querySelectorAll('.stat-divider, .stat:last-child').forEach(el => el.style.display = 'none');
+  document.querySelector('.subtitle').textContent = `♪ ${_activeSong.title}`;
+
+  // Load hardcoded starting state
+  state = _activeSong.startState.slice();
+  puzzleState = state.slice();
+  moves = 0;
+  clickCounts = new Array(SIZE * SIZE).fill(0);
+  moveHistory = [];
+  hintsUsed = 0;
+  resetHintState();
+  buildGrid();
+  checkStuck();
+} else {
 
 const _params = new URLSearchParams(location.search);
 const _replayParam = _params.get('r');
@@ -2556,6 +2753,7 @@ if (_replayParam && _puzzleNum > 0) {
   }
 } else {
   loadCurrentPuzzle();
+}
 }
 
 // Handle browser back/forward to restore win screen
