@@ -1866,12 +1866,14 @@ function toggleSound() {
   soundEnabled = !soundEnabled;
   localStorage.setItem('gg_sound', soundEnabled ? 'on' : 'off');
   initSoundUI();
+  showToast(soundEnabled ? 'Sound on' : 'Sound off');
 }
 
 function toggleMusicMode() {
   songModeAudio = !songModeAudio;
   localStorage.setItem('gg_music_mode', songModeAudio ? 'on' : 'off');
   initSoundUI();
+  showToast(songModeAudio ? 'Melodic mode on' : 'Melodic mode off');
 }
 
 // C major pentatonic base frequencies (C D E G A)
