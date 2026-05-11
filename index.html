@@ -1687,10 +1687,10 @@ function handleKey(e, i) {
   }
   const x = i % SIZE, y = Math.floor(i / SIZE);
   let next = -1;
-  if (e.key === 'ArrowRight' && x < SIZE - 1) next = i + 1;
-  if (e.key === 'ArrowLeft'  && x > 0)        next = i - 1;
-  if (e.key === 'ArrowDown'  && y < SIZE - 1) next = i + SIZE;
-  if (e.key === 'ArrowUp'    && y > 0)        next = i - SIZE;
+  if (e.key === 'ArrowRight') next = i < SIZE * SIZE - 1 ? i + 1 : 0;
+  if (e.key === 'ArrowLeft')  next = i > 0 ? i - 1 : SIZE * SIZE - 1;
+  if (e.key === 'ArrowDown')  next = y < SIZE - 1 ? i + SIZE : x;
+  if (e.key === 'ArrowUp')    next = y > 0 ? i - SIZE : (SIZE - 1) * SIZE + x;
   if (next >= 0) {
     e.preventDefault();
     cells[next].focus();
