@@ -835,6 +835,92 @@ body {
 .footer a:hover {
   color: #93c5fd;
 }
+
+/* ── Song picker ── */
+.song-link {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 13px;
+  color: rgba(148,163,184,0.6);
+  cursor: pointer;
+  transition: color 0.2s;
+  letter-spacing: 0.3px;
+}
+.song-link:hover { color: #93c5fd; }
+
+.song-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s;
+}
+.song-overlay.visible { opacity: 1; pointer-events: auto; }
+
+.song-card {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid rgba(148,163,184,0.15);
+  border-radius: 18px;
+  padding: 28px 24px 20px;
+  max-width: 340px;
+  width: 90%;
+  text-align: center;
+}
+.song-card h3 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  color: #e2e8f0;
+}
+.song-card p {
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: rgba(148,163,184,0.7);
+}
+.song-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.song-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(148,163,184,0.1);
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  text-decoration: none;
+}
+.song-item:hover {
+  background: rgba(96,165,250,0.08);
+  border-color: rgba(96,165,250,0.25);
+}
+.song-item-title {
+  font-size: 14px;
+  color: #e2e8f0;
+  font-weight: 500;
+}
+.song-item-info {
+  font-size: 12px;
+  color: rgba(148,163,184,0.55);
+}
+.song-close {
+  background: none;
+  border: 1px solid rgba(148,163,184,0.15);
+  border-radius: 8px;
+  color: rgba(148,163,184,0.6);
+  padding: 6px 18px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.song-close:hover { color: #93c5fd; border-color: rgba(96,165,250,0.3); }
 </style>
 </head>
 
@@ -884,6 +970,18 @@ body {
 
   <div class="hint-info" id="hint-info"></div>
 
+  <div class="song-link" id="song-link" onclick="openSongPicker()">♪ Song Challenges</div>
+
+</div>
+
+<!-- Song picker overlay -->
+<div class="song-overlay" id="song-overlay">
+  <div class="song-card">
+    <h3>♪ Song Challenges</h3>
+    <p>Solve the puzzle by playing a melody</p>
+    <div class="song-list" id="song-list"></div>
+    <button class="song-close" onclick="closeSongPicker()">Close</button>
+  </div>
 </div>
 
 <!-- Win overlay -->
@@ -1035,6 +1133,28 @@ const SONGS = {
 const _songParam = new URLSearchParams(location.search).get('song');
 const _activeSong = _songParam && SONGS[_songParam] ? SONGS[_songParam] : null;
 const isSongMode = !!_activeSong;
+
+function openSongPicker() {
+  const list = document.getElementById('song-list');
+  list.innerHTML = '';
+  for (const [id, song] of Object.entries(SONGS)) {
+    const item = document.createElement('a');
+    item.className = 'song-item';
+    item.href = `?song=${id}`;
+    item.innerHTML = `<span class="song-item-title">${song.title}</span><span class="song-item-info">${song.melody.length} notes</span>`;
+    list.appendChild(item);
+  }
+  document.getElementById('song-overlay').classList.add('visible');
+}
+
+function closeSongPicker() {
+  document.getElementById('song-overlay').classList.remove('visible');
+}
+
+// Close on backdrop click
+document.getElementById('song-overlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeSongPicker();
+});
 
 // ── Seeded PRNG (mulberry32) ─────────────────────────────────
 
@@ -2727,6 +2847,7 @@ if (isSongMode) {
   document.querySelector('.stats').querySelectorAll('.stat-divider, .stat:last-child').forEach(el => el.style.display = 'none');
   document.querySelector('.subtitle').textContent = `♪ ${_activeSong.title}`;
   document.getElementById('btn-solution').style.display = '';
+  document.getElementById('song-link').style.display = 'none';
 
   // Load hardcoded starting state
   state = _activeSong.startState.slice();
