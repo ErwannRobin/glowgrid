@@ -2209,27 +2209,36 @@ let isReplayMode = false; // true when viewing a shared replay URL
 
 function renderHeatmapAtStep(step) {
   const winGrid = document.getElementById('win-grid');
-  // Count clicks up to this step
   const counts = new Array(SIZE * SIZE).fill(0);
   for (let i = 0; i < step; i++) {
     counts[moveHistory[i].cellIndex]++;
   }
-  const maxCount = Math.max(1, ...counts);
+  // Use final max so colors build up progressively during animation
+  const finalCounts = new Array(SIZE * SIZE).fill(0);
+  for (let i = 0; i < moveHistory.length; i++) {
+    finalCounts[moveHistory[i].cellIndex]++;
+  }
+  const maxCount = Math.max(1, ...finalCounts);
   const gridCells = winGrid.querySelectorAll('.win-grid-cell');
   gridCells.forEach((c, i) => {
     const n = counts[i];
     c.className = 'win-grid-cell';
     if (n === 0) {
       c.style.background = 'rgba(255,255,255,0.04)';
-      c.style.boxShadow = 'none';
-      c.style.borderColor = '';
+      c.style.boxShadow = 'inset 0 1px 1px rgba(255,255,255,0.04), 0 4px 12px rgba(0,0,0,0.3)';
+      c.style.borderColor = 'rgba(255,255,255,0.07)';
+      c.style.color = '';
     } else {
-      const row = Math.floor(i / SIZE), col = i % SIZE;
-      const hue = (180 + col * 40 + row * 50) % 360;
-      const intensity = 0.3 + 0.7 * (n / maxCount);
-      c.style.background = `hsl(${hue}, 75%, ${58 + (1 - intensity) * 15}%)`;
-      c.style.boxShadow = `0 0 ${6 + intensity * 8}px hsla(${hue}, 75%, 58%, ${intensity * 0.6})`;
-      c.style.borderColor = `hsla(${hue}, 75%, 70%, ${intensity * 0.5})`;
+      const ratio = n / maxCount;
+      const hue = 240 - ratio * 240;
+      const sat = 75;
+      const light = 50 + (1 - ratio) * 15;
+      // Radial gradient matching .cell.on design
+      c.style.background = `radial-gradient(circle at 38% 32%, hsl(${hue}, ${sat - 15}%, ${light + 20}%), hsl(${hue}, ${sat}%, ${light}%) 55%, hsl(${hue}, ${sat + 5}%, ${light - 10}%))`;
+      c.style.boxShadow = `0 0 ${10 + ratio * 14}px hsla(${hue}, ${sat}%, ${light}%, ${0.3 + ratio * 0.3}), inset 0 1px 2px rgba(255,255,255,0.3)`;
+      c.style.borderColor = `rgba(255,255,255,0.45)`;
+      // Black text on light/warm cells (yellow, orange, red), white on dark (blue, green)
+      c.style.color = hue >= 50 && hue <= 200 ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)';
     }
     c.textContent = n > 0 ? n : '';
   });
@@ -2528,27 +2537,31 @@ function stopLiveRecording() {
 }
 
 function buildShareText() {
-  if (isSongMode) {
+  const maxCount = Math.max(1, ...clickCounts);
+  // Map click count ratio to heat emoji: blue → green → yellow → orange → red
+  const countToEmoji = (n) => {
+    const ratio = n / maxCount;
+    if (ratio < 0.2) return '🟦';
+    if (ratio < 0.4) return '🟩';
+    if (ratio < 0.6) return '🟨';
+    if (ratio < 0.8) return '🟧';
+    return '🟥';
+  };
+  const buildRows = () => {
     const rows = [];
-    const hueToEmoji = (hue) => {
-      if (hue >= 330 || hue < 15)  return '🟥';
-      if (hue < 45)  return '🟧';
-      if (hue < 75)  return '🟨';
-      if (hue < 165) return '🟩';
-      if (hue < 255) return '🟦';
-      return '🟪';
-    };
     for (let r = 0; r < SIZE; r++) {
       let row = '';
       for (let c = 0; c < SIZE; c++) {
-        if (clickCounts[r * SIZE + c] === 0) row += '⬛';
-        else {
-          const hue = (180 + c * 40 + r * 50) % 360;
-          row += hueToEmoji(hue);
-        }
+        const n = clickCounts[r * SIZE + c];
+        row += n === 0 ? '⬛' : countToEmoji(n);
       }
       rows.push(row);
     }
+    return rows;
+  };
+
+  if (isSongMode) {
+    const rows = buildRows();
     const hintSuffix = hintsUsed > 0 ? ` (${hintsUsed} hint${hintsUsed > 1 ? 's' : ''})` : '';
     const songURL = `${location.origin}${location.pathname}?song=${_songParam}`;
     return [
@@ -2563,28 +2576,7 @@ function buildShareText() {
 
   const num = puzzleNumberFromKey(currentDateKey);
   const dateStr = dateFromKey(currentDateKey).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const rows = [];
-  // Map cell hues to colored square emojis
-  const hueToEmoji = (hue) => {
-    if (hue >= 330 || hue < 15)  return '🟥'; // red
-    if (hue < 45)  return '🟧'; // orange
-    if (hue < 75)  return '🟨'; // yellow
-    if (hue < 165) return '🟩'; // green
-    if (hue < 255) return '🟦'; // blue
-    return '🟪'; // purple/pink
-  };
-  for (let r = 0; r < SIZE; r++) {
-    let row = '';
-    for (let c = 0; c < SIZE; c++) {
-      if (clickCounts[r * SIZE + c] === 0) {
-        row += '⬛';
-      } else {
-        const hue = (180 + c * 40 + r * 50) % 360;
-        row += hueToEmoji(hue);
-      }
-    }
-    rows.push(row);
-  }
+  const rows = buildRows();
   const streak = getStreak();
   const streakSuffix = currentDateKey === todayKey() && streak > 1 ? ` 🔥${streak}` : '';
   const hintSuffix = hintsUsed > 0 ? ` (${hintsUsed} hint${hintsUsed > 1 ? 's' : ''})` : '';
@@ -2634,26 +2626,38 @@ function drawHeatmapFrame(ctx, W, H) {
     const row = Math.floor(i / SIZE), col = i % SIZE;
     const x = gridX + col * (cellSize + gap);
     const y = gridY + row * (cellSize + gap);
-    const hue = (180 + col * 40 + row * 50) % 360;
     const n = clickCounts[i];
 
     _canvasRoundRect(ctx, x, y, cellSize, cellSize, 12);
 
     if (n > 0) {
-      const intensity = 0.3 + 0.7 * (n / maxCount);
-      const light = 58 + (1 - intensity) * 15;
-      ctx.fillStyle = `hsl(${hue}, 75%, ${light}%)`;
+      const ratio = n / maxCount;
+      const hue = 240 - ratio * 240;
+      const sat = 75;
+      const light = 50 + (1 - ratio) * 15;
+      // Radial-like gradient: lighter center, darker edges
+      const grad = ctx.createRadialGradient(
+        x + cellSize * 0.38, y + cellSize * 0.32, cellSize * 0.05,
+        x + cellSize / 2, y + cellSize / 2, cellSize * 0.7
+      );
+      grad.addColorStop(0, `hsl(${hue}, ${sat - 15}%, ${light + 20}%)`);
+      grad.addColorStop(0.55, `hsl(${hue}, ${sat}%, ${light}%)`);
+      grad.addColorStop(1, `hsl(${hue}, ${sat + 5}%, ${light - 10}%)`);
+      ctx.fillStyle = grad;
     } else {
       ctx.fillStyle = 'rgba(255,255,255,0.04)';
     }
     ctx.fill();
 
-    ctx.strokeStyle = n > 0 ? `hsla(${hue}, 75%, 70%, 0.5)` : 'rgba(255,255,255,0.06)';
+    ctx.strokeStyle = n > 0 ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.06)';
     ctx.lineWidth = 1;
     ctx.stroke();
 
     if (n > 0) {
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      const ratio = n / maxCount;
+      const hue = 240 - ratio * 240;
+      const light = 50 + (1 - ratio) * 15;
+      ctx.fillStyle = (hue >= 50 && hue <= 200) ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)';
       ctx.font = 'bold 24px system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
