@@ -1704,6 +1704,7 @@ function _endLongPress(originCell) {
 }
 
 function handleClick(i, cell) {
+  if (_isConfirmVisible()) return;
   const wasHintCell = activeHintCell === i; // capture before clearHintHighlight
   clearHintHighlight();
   hintPath = null;
@@ -1770,8 +1771,9 @@ function handleKey(e, i) {
 
 // ── Global keyboard shortcuts ─────────────────────────────────
 document.addEventListener('keydown', e => {
-  // Ignore when win overlay is visible or an input is focused
+  // Ignore when win overlay or confirm dialog is visible, or an input is focused
   if (document.getElementById('win-overlay').classList.contains('visible')) return;
+  if (_isConfirmVisible()) return;
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
   if (e.key === 'h' || e.key === 'H') {
@@ -2906,16 +2908,25 @@ function resetPuzzle() {
 }
 
 let _confirmCb = null;
+function _isConfirmVisible() {
+  return document.getElementById('confirm-overlay').classList.contains('visible');
+}
 function showConfirm(msg, cb) {
   document.getElementById('confirm-msg').textContent = msg;
   _confirmCb = cb;
   document.getElementById('confirm-overlay').classList.add('visible');
+  document.querySelector('.confirm-ok').focus();
 }
 function closeConfirm(ok) {
   document.getElementById('confirm-overlay').classList.remove('visible');
   if (ok && _confirmCb) _confirmCb();
   _confirmCb = null;
 }
+document.addEventListener('keydown', e => {
+  if (!_isConfirmVisible()) return;
+  if (e.key === 'Escape') { e.preventDefault(); closeConfirm(false); }
+  if (e.key === 'Enter') { e.preventDefault(); closeConfirm(true); }
+});
 
 function confirmReset() {
   if (moves === 0) { resetPuzzle(); return; }
