@@ -1072,7 +1072,7 @@ body {
 </div>
 
 <!-- Confirm dialog -->
-<div class="confirm-overlay" id="confirm-overlay">
+<div class="confirm-overlay" id="confirm-overlay" onclick="if(event.target===this)closeConfirm(false)">
   <div class="confirm-box">
     <div class="confirm-msg" id="confirm-msg"></div>
     <div class="confirm-btns">
@@ -1750,6 +1750,7 @@ function handleClick(i, cell) {
 }
 
 function handleKey(e, i) {
+  if (_isConfirmVisible()) return;
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
     handleClick(i, cells[i]);
@@ -2924,9 +2925,11 @@ function closeConfirm(ok) {
 }
 document.addEventListener('keydown', e => {
   if (!_isConfirmVisible()) return;
-  if (e.key === 'Escape') { e.preventDefault(); closeConfirm(false); }
-  if (e.key === 'Enter') { e.preventDefault(); closeConfirm(true); }
-});
+  if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeConfirm(false); }
+  if (e.key === 'Enter')  { e.preventDefault(); e.stopImmediatePropagation(); closeConfirm(true); }
+  // Block all keys while dialog is open
+  e.stopPropagation();
+}, true);
 
 function confirmReset() {
   if (moves === 0) { resetPuzzle(); return; }
