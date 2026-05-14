@@ -1783,6 +1783,18 @@ document.addEventListener('keydown', e => {
     return;
   }
 
+  if (e.key === 's' || e.key === 'S') {
+    e.preventDefault();
+    toggleSound();
+    return;
+  }
+
+  if (e.key === 'm' || e.key === 'M') {
+    e.preventDefault();
+    toggleMusicMode();
+    return;
+  }
+
   if (e.key === 'Enter' && activeHintCell >= 0) {
     e.preventDefault();
     handleClick(activeHintCell, cells[activeHintCell]);
@@ -1940,14 +1952,30 @@ function toggleSound() {
   soundEnabled = !soundEnabled;
   localStorage.setItem('gg_sound', soundEnabled ? 'on' : 'off');
   initSoundUI();
-  showToast(soundEnabled ? 'Sound on' : 'Sound off');
+  showToast(soundEnabled ? 'Sound on (S)' : 'Sound off (S)');
+  if (soundEnabled) playDing();
 }
 
 function toggleMusicMode() {
   songModeAudio = !songModeAudio;
   localStorage.setItem('gg_music_mode', songModeAudio ? 'on' : 'off');
   initSoundUI();
-  showToast(songModeAudio ? 'Melodic mode on' : 'Game mode on');
+  showToast(songModeAudio ? 'Melodic mode on (M)' : 'Game mode on (M)');
+}
+
+function playDing() {
+  try {
+    const ctx = _getCtx();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(_audioDest());
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, now);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+    osc.start(now); osc.stop(now + 0.4);
+  } catch (_) {}
 }
 
 // C major pentatonic base frequencies (C D E G A)
@@ -2427,7 +2455,8 @@ function checkWin() {
     // Push win state to browser history so back button can restore it
     const puzzleNum = puzzleNumberFromKey(currentDateKey);
     const replayEncoded = encodeMoves(moveHistory);
-    const winUrl = `${location.pathname}?p=${puzzleNum}&r=${replayEncoded}&own=1`;
+    const mmParam = songModeAudio ? '&mm=1' : '';
+    const winUrl = `${location.pathname}?p=${puzzleNum}&r=${replayEncoded}&own=1${mmParam}`;
     history.pushState({ win: true }, '', winUrl);
 
     showWinOverlay({ streakUpdated });
@@ -2652,7 +2681,8 @@ function buildShareText() {
   const hintSuffix = hintsUsed > 0 ? ` (${hintsUsed} hint${hintsUsed > 1 ? 's' : ''})` : '';
   const replayEncoded = encodeMoves(moveHistory);
   const puzzleNum = puzzleNumberFromKey(currentDateKey);
-  const replayURL = `${location.origin}${location.pathname}?p=${puzzleNum}&r=${replayEncoded}`;
+  const mmParam = songModeAudio ? '&mm=1' : '';
+  const replayURL = `${location.origin}${location.pathname}?p=${puzzleNum}&r=${replayEncoded}${mmParam}`;
   return [
     `Here is my result for GlowGrid #${num} · ${dateStr} ✨`,
     ...rows,
@@ -2982,6 +3012,12 @@ const _params = new URLSearchParams(location.search);
 const _replayParam = _params.get('r');
 const _puzzleNum   = parseInt(_params.get('p'), 10);
 
+// Apply music mode from URL if present
+if (_params.get('mm') === '1') {
+  songModeAudio = true;
+  initSoundUI();
+}
+
 if (_replayParam && _puzzleNum > 0) {
   const _replayDate = keyFromPuzzleNumber(_puzzleNum);
   const _ownMode = _params.get('own') === '1';
@@ -3031,6 +3067,11 @@ window.addEventListener('popstate', () => {
   const r = params.get('r');
   const p = parseInt(params.get('p'), 10);
   const own = params.get('own') === '1';
+
+  if (params.get('mm') === '1') {
+    songModeAudio = true;
+    initSoundUI();
+  }
 
   if (r && p > 0 && own) {
     const dateKey = keyFromPuzzleNumber(p);
