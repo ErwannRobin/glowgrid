@@ -843,6 +843,7 @@ body {
 .song-link {
   display: inline-block;
   margin-top: 10px;
+  margin-bottom: 40px;
   font-size: 13px;
   color: rgba(148,163,184,0.6);
   cursor: pointer;
@@ -1952,15 +1953,17 @@ function toggleSound() {
   soundEnabled = !soundEnabled;
   localStorage.setItem('gg_sound', soundEnabled ? 'on' : 'off');
   initSoundUI();
-  showToast(soundEnabled ? 'Sound on (S)' : 'Sound off (S)');
-  if (soundEnabled) playDing();
+  const kbHint = isTouchDevice() ? '' : ' (S)';
+  showToast(soundEnabled ? `Sound on${kbHint}` : `Sound off${kbHint}`);
+  if (soundEnabled) setTimeout(playDing, 50);
 }
 
 function toggleMusicMode() {
   songModeAudio = !songModeAudio;
   localStorage.setItem('gg_music_mode', songModeAudio ? 'on' : 'off');
   initSoundUI();
-  showToast(songModeAudio ? 'Melodic mode on (M)' : 'Game mode on (M)');
+  const kbHint = isTouchDevice() ? '' : ' (M)';
+  showToast(songModeAudio ? `Melodic mode on${kbHint}` : `Game mode on${kbHint}`);
 }
 
 function playDing() {

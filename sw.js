@@ -1,4 +1,4 @@
-const CACHE_NAME = 'glowgrid-v1';
+const CACHE_NAME = 'glowgrid-v2';
 const ASSETS = [
   '/',
   '/index.html',
