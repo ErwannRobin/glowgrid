@@ -5,7 +5,7 @@ GlowGrid encodes puzzle solutions directly in the URL, enabling shareable links 
 ## URL Format
 
 ```
-https://glowgrid.netlify.app/?p=<puzzle>&r=<moves>[&own=1]
+https://glow-grid.vercel.app/?p=<puzzle>&r=<moves>[&own=1]
 ```
 
 | Parameter | Type   | Description |
@@ -137,7 +137,7 @@ GlowGrid #497 · May 10 ✨
 Solved in 12 moves 🔥3
 
 🎵 Hear my solution:
-https://glowgrid.netlify.app/?p=497&r=AKGLBFQMRCHSN
+https://glow-grid.vercel.app/?p=497&r=AKGLBFQMRCHSN
 ```
 
 - `🟦` = cell was clicked at least once
