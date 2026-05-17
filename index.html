@@ -2915,8 +2915,12 @@ function goDate(delta) {
   if (compareDateKeys(candidate, today) > 0) return;
   if (compareDateKeys(candidate, minDate) < 0) return;
 
-  currentDateKey = candidate;
-  loadCurrentPuzzle();
+  const doNav = () => { currentDateKey = candidate; loadCurrentPuzzle(); };
+  if (moves > 0) {
+    showConfirm('Switch puzzle? Your progress will be lost.', doNav);
+  } else {
+    doNav();
+  }
 }
 
 function resetPuzzle() {
