@@ -12,12 +12,12 @@
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-<title>GlowGrid</title>
+<title>Glow-Grid</title>
 <meta name="description" content="Glow up the grid for a daily unique solution. What does yours sound like?" />
 
 <!-- Open Graph -->
 <meta property="og:type" content="website" />
-<meta property="og:title" content="GlowGrid" />
+<meta property="og:title" content="Glow-Grid" />
 <meta property="og:description" content="Glow up the grid for a daily unique solution. What does yours sound like?" />
 <meta property="og:image" content="https://glow-grid.vercel.app/og-image.png" />
 <meta property="og:image:width" content="1200" />
@@ -26,7 +26,7 @@
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="GlowGrid" />
+<meta name="twitter:title" content="Glow-Grid" />
 <meta name="twitter:description" content="Glow up the grid for a daily unique solution. What does yours sound like?" />
 <meta name="twitter:image" content="https://glow-grid.vercel.app/og-image.png" />
 
@@ -35,7 +35,7 @@
 {
   "@context": "https://schema.org",
   "@type": "WebApplication",
-  "name": "GlowGrid",
+  "name": "Glow-Grid",
   "url": "https://glow-grid.vercel.app",
   "description": "Glow up the grid for a daily unique solution. What does yours sound like?",
   "applicationCategory": "Game",
@@ -1035,7 +1035,7 @@ body {
 <div class="container">
 
   <div>
-    <a class="title" href="./index.html" style="text-decoration:none">GlowGrid</a>
+    <a class="title" href="./index.html" style="text-decoration:none">Glow-Grid</a>
     <div class="subtitle">Light them all</div>
   </div>
 
@@ -1057,7 +1057,7 @@ body {
     </div>
   </div>
 
-  <div class="grid" id="grid" role="grid" aria-label="GlowGrid puzzle"></div>
+  <div class="grid" id="grid" role="grid" aria-label="Glow-Grid puzzle"></div>
 
   <div class="actions">
     <button class="btn" onclick="confirmReset()">↺ Reset</button>
@@ -1859,6 +1859,7 @@ function generatePuzzleForKey(key) {
     applyToggle(Math.floor(rng() * SIZE * SIZE));
   }
   puzzleState = state.slice();
+  if (typeof _computeTitleSolution === 'function') _computeTitleSolution();
 }
 
 // ── Haptic feedback ───────────────────────────────────────────
@@ -2542,7 +2543,7 @@ function drawReplayFrame(ctx, W, H, step, clickedCell) {
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 26px system-ui, -apple-system, sans-serif';
   ctx.textAlign = 'center';
-  const replayTitle = isSongMode ? `♪ ${_activeSong.title}` : `GlowGrid #${puzzleNumberFromKey(currentDateKey)}`;
+  const replayTitle = isSongMode ? `♪ ${_activeSong.title}` : `Glow-Grid #${puzzleNumberFromKey(currentDateKey)}`;
   ctx.fillText(replayTitle, W / 2, 46);
 
   // Grid
@@ -2701,7 +2702,7 @@ function buildShareText() {
     const hintSuffix = hintsUsed > 0 ? ` (${hintsUsed} hint${hintsUsed > 1 ? 's' : ''})` : '';
     const songURL = `${location.origin}${location.pathname}?song=${_songParam}`;
     return [
-      `♪ GlowGrid Song Challenge: ${_activeSong.title} ✨`,
+      `♪ Glow-Grid Song Challenge: ${_activeSong.title} ✨`,
       ...rows,
       `Solved in ${moves} move${moves === 1 ? '' : 's'}${hintSuffix}`,
       `Can you play the melody?`,
@@ -2721,7 +2722,7 @@ function buildShareText() {
   const mmParam = songModeAudio ? '&mm=1' : '';
   const replayURL = `${location.origin}${location.pathname}?p=${puzzleNum}&r=${replayEncoded}${mmParam}`;
   return [
-    `Here is my result for GlowGrid #${num} · ${dateStr} ✨`,
+    `Here is my result for Glow-Grid #${num} · ${dateStr} ✨`,
     ...rows,
     `Solved in ${moves} move${moves === 1 ? '' : 's'}${hintSuffix}${streakSuffix}`,
     `Can you do better?`,
@@ -2754,7 +2755,7 @@ function drawHeatmapFrame(ctx, W, H) {
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 26px system-ui, -apple-system, sans-serif';
   ctx.textAlign = 'center';
-  const heatmapTitle = isSongMode ? `♪ ${_activeSong.title}` : `GlowGrid #${puzzleNumberFromKey(currentDateKey)}`;
+  const heatmapTitle = isSongMode ? `♪ ${_activeSong.title}` : `Glow-Grid #${puzzleNumberFromKey(currentDateKey)}`;
   ctx.fillText(heatmapTitle, W / 2, 46);
 
   const maxCount = Math.max(1, ...clickCounts);
@@ -3098,6 +3099,60 @@ _titleEl.addEventListener('mousemove', (e) => _spawnNote(e.clientX, e.clientY));
 _titleEl.addEventListener('touchmove', (e) => {
   _spawnNote(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: true });
+
+// Title hover ding: play a note hinting at today's optimal solution
+let _titleSolution = [];
+let _lastDingLetter = -1;
+function _computeTitleSolution() {
+  if (isSongMode) return;
+  const sol = bidirBFSSolve(puzzleState) || [];
+  _titleSolution = _titleSpans.map((_, i) => sol[i % sol.length]);
+}
+function _playTitleDing(letterIdx) {
+  if (letterIdx === _lastDingLetter) return;
+  _lastDingLetter = letterIdx;
+  if (!soundEnabled || !_titleSolution.length) return;
+  const cellIdx = _titleSolution[letterIdx];
+  if (cellIdx == null) return;
+  try {
+    const ctx = _getCtx();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(_audioDest());
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(cellFreq(cellIdx), now);
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    osc.start(now); osc.stop(now + 0.5);
+  } catch (_) {}
+}
+_titleEl.addEventListener('mousemove', (e) => {
+  const rect = _titleEl.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  let closest = 0, minDist = Infinity;
+  _titleSpans.forEach((sp, i) => {
+    const spRect = sp.getBoundingClientRect();
+    const center = spRect.left + spRect.width / 2 - rect.left;
+    const d = Math.abs(x - center);
+    if (d < minDist) { minDist = d; closest = i; }
+  });
+  _playTitleDing(closest);
+});
+_titleEl.addEventListener('mouseleave', () => { _lastDingLetter = -1; });
+_titleEl.addEventListener('touchmove', (e) => {
+  const rect = _titleEl.getBoundingClientRect();
+  const x = e.touches[0].clientX - rect.left;
+  let closest = 0, minDist = Infinity;
+  _titleSpans.forEach((sp, i) => {
+    const spRect = sp.getBoundingClientRect();
+    const center = spRect.left + spRect.width / 2 - rect.left;
+    const d = Math.abs(x - center);
+    if (d < minDist) { minDist = d; closest = i; }
+  });
+  _playTitleDing(closest);
+}, { passive: true });
+_titleEl.addEventListener('touchend', () => { _lastDingLetter = -1; }, { passive: true });
 
 currentDateKey = todayKey();
 initSoundUI();
