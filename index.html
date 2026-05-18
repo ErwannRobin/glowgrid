@@ -787,6 +787,21 @@ body {
   100% { transform: translate(var(--tx), var(--ty)) scale(0.2); opacity: 0; }
 }
 
+/* ── Floating musical notes ── */
+.music-note {
+  position: fixed;
+  pointer-events: none;
+  z-index: 50;
+  font-size: 28px;
+  opacity: 0;
+  animation: note-float 1.8s ease-out forwards;
+}
+
+@keyframes note-float {
+  0%   { opacity: 1; transform: translate(0, 0) scale(1) rotate(0deg); }
+  100% { opacity: 0; transform: translate(var(--nx), var(--ny)) scale(0.5) rotate(var(--nr)); }
+}
+
 /* ── Sound controls ── */
 .sound-ctrl {
   position: fixed;
@@ -3048,6 +3063,41 @@ _titleEl.addEventListener('touchmove', (e) => {
 }, { passive: true });
 _titleEl.addEventListener('touchend', _titleGlowClear, { passive: true });
 _titleEl.addEventListener('touchcancel', _titleGlowClear, { passive: true });
+
+// Floating musical notes on title hover
+const _noteSymbols = ['♪', '♫', '♩', '♬'];
+let _lastNoteTime = 0;
+function _spawnNote(clientX, clientY) {
+  const now = Date.now();
+  if (now - _lastNoteTime < 120) return;
+  _lastNoteTime = now;
+  const note = document.createElement('span');
+  note.className = 'music-note';
+  note.textContent = _noteSymbols[Math.random() * 4 | 0];
+  // Match color of closest letter
+  const rect = _titleEl.getBoundingClientRect();
+  const x = clientX - rect.left;
+  let closest = 0, minDist = Infinity;
+  _titleSpans.forEach((sp, i) => {
+    const spRect = sp.getBoundingClientRect();
+    const center = spRect.left + spRect.width / 2 - rect.left;
+    const d = Math.abs(x - center);
+    if (d < minDist) { minDist = d; closest = i; }
+  });
+  const hue = getComputedStyle(_titleSpans[closest]).getPropertyValue('--letter-hue');
+  note.style.color = `hsl(${hue}, 75%, 58%)`;
+  note.style.left = `${clientX}px`;
+  note.style.top = `${clientY - 20}px`;
+  note.style.setProperty('--nx', `${(Math.random() - 0.5) * 80}px`);
+  note.style.setProperty('--ny', `${-60 - Math.random() * 50}px`);
+  note.style.setProperty('--nr', `${(Math.random() - 0.5) * 40}deg`);
+  document.body.appendChild(note);
+  note.addEventListener('animationend', () => note.remove());
+}
+_titleEl.addEventListener('mousemove', (e) => _spawnNote(e.clientX, e.clientY));
+_titleEl.addEventListener('touchmove', (e) => {
+  _spawnNote(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: true });
 
 currentDateKey = todayKey();
 initSoundUI();
