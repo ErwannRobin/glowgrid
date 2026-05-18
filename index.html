@@ -2092,8 +2092,8 @@ function playMusicalClick(cellIndex, cellWasOn) {
 // Subtle short pop — used for hover
 function playHoverSound(cellIndex, cellIsOn) {
   if (!soundEnabled) return;
-  // Subtle haptic tick on hover (mobile only)
-  if (navigator.vibrate) navigator.vibrate(3);
+  // Subtle haptic tick on hover (works on both Android and iOS)
+  hapticImpact();
   try {
     const ctx  = _getCtx();
     const now  = ctx.currentTime;
