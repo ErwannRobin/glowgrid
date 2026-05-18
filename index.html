@@ -3020,10 +3020,9 @@ _titleEl.innerHTML = [..._titleText].map((ch, i) => {
 }).join('');
 
 const _titleSpans = [..._titleEl.querySelectorAll('span')];
-_titleEl.addEventListener('mousemove', (e) => {
+function _titleGlow(clientX) {
   const rect = _titleEl.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  // Find closest letter index by position
+  const x = clientX - rect.left;
   let closest = 0, minDist = Infinity;
   _titleSpans.forEach((sp, i) => {
     const spRect = sp.getBoundingClientRect();
@@ -3038,10 +3037,17 @@ _titleEl.addEventListener('mousemove', (e) => {
     else if (dist === 1) sp.classList.add('glow-2');
     else if (dist === 2) sp.classList.add('glow-3');
   });
-});
-_titleEl.addEventListener('mouseleave', () => {
+}
+function _titleGlowClear() {
   _titleSpans.forEach(sp => sp.classList.remove('glow-1', 'glow-2', 'glow-3'));
-});
+}
+_titleEl.addEventListener('mousemove', (e) => _titleGlow(e.clientX));
+_titleEl.addEventListener('mouseleave', _titleGlowClear);
+_titleEl.addEventListener('touchmove', (e) => {
+  _titleGlow(e.touches[0].clientX);
+}, { passive: true });
+_titleEl.addEventListener('touchend', _titleGlowClear, { passive: true });
+_titleEl.addEventListener('touchcancel', _titleGlowClear, { passive: true });
 
 currentDateKey = todayKey();
 initSoundUI();
