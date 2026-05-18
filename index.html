@@ -126,14 +126,35 @@ body {
   font-size: clamp(24px, 6.5vw, 30px);
   font-weight: 700;
   letter-spacing: -0.5px;
-  background: linear-gradient(135deg, #e2e8f0 30%, #64748b);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
   text-align: center;
   line-height: 1;
   display: block;
   cursor: pointer;
+  position: relative;
+  text-decoration: none;
+}
+
+.title span {
+  background: linear-gradient(135deg, #e2e8f0 30%, #64748b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  -webkit-text-stroke: 0px transparent;
+  text-shadow: none;
+  transition: -webkit-text-stroke 0.2s, text-shadow 0.2s, filter 0.2s;
+}
+
+.title span.glow-1 {
+  -webkit-text-stroke: 1.5px hsl(var(--letter-hue), 75%, 58%);
+  text-shadow: 0 0 14px hsla(var(--letter-hue), 75%, 58%, 0.7);
+}
+.title span.glow-2 {
+  -webkit-text-stroke: 1px hsla(var(--letter-hue), 75%, 58%, 0.55);
+  text-shadow: 0 0 8px hsla(var(--letter-hue), 75%, 58%, 0.4);
+}
+.title span.glow-3 {
+  -webkit-text-stroke: 0.5px hsla(var(--letter-hue), 75%, 58%, 0.25);
+  text-shadow: 0 0 4px hsla(var(--letter-hue), 75%, 58%, 0.2);
 }
 
 .subtitle {
@@ -2988,6 +3009,39 @@ function loadCurrentPuzzle() {
 }
 
 // ── Init ─────────────────────────────────────────────────────
+
+// Title rainbow torch effect
+// Title per-letter glow: wrap each letter in a span with a game-palette hue
+const _titleEl = document.querySelector('.title');
+const _titleText = _titleEl.textContent;
+_titleEl.innerHTML = [..._titleText].map((ch, i) => {
+  const hue = (180 + (i / _titleText.length) * 310) % 360;
+  return `<span style="--letter-hue:${Math.round(hue)}">${ch}</span>`;
+}).join('');
+
+const _titleSpans = [..._titleEl.querySelectorAll('span')];
+_titleEl.addEventListener('mousemove', (e) => {
+  const rect = _titleEl.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  // Find closest letter index by position
+  let closest = 0, minDist = Infinity;
+  _titleSpans.forEach((sp, i) => {
+    const spRect = sp.getBoundingClientRect();
+    const center = spRect.left + spRect.width / 2 - rect.left;
+    const d = Math.abs(x - center);
+    if (d < minDist) { minDist = d; closest = i; }
+  });
+  _titleSpans.forEach((sp, i) => {
+    const dist = Math.abs(i - closest);
+    sp.classList.remove('glow-1', 'glow-2', 'glow-3');
+    if (dist === 0) sp.classList.add('glow-1');
+    else if (dist === 1) sp.classList.add('glow-2');
+    else if (dist === 2) sp.classList.add('glow-3');
+  });
+});
+_titleEl.addEventListener('mouseleave', () => {
+  _titleSpans.forEach(sp => sp.classList.remove('glow-1', 'glow-2', 'glow-3'));
+});
 
 currentDateKey = todayKey();
 initSoundUI();
