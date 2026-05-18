@@ -781,20 +781,6 @@ body {
   transform: translateX(-50%) translateY(0);
 }
 
-/* ── Confetti particles ── */
-.particle {
-  position: fixed;
-  pointer-events: none;
-  z-index: 101;
-  border-radius: 50%;
-  animation: particle-fly var(--dur) ease-out var(--delay) both;
-}
-
-@keyframes particle-fly {
-  0%   { transform: translate(0, 0) scale(1); opacity: 1; }
-  100% { transform: translate(var(--tx), var(--ty)) scale(0.2); opacity: 0; }
-}
-
 /* ── Floating musical notes ── */
 .music-note {
   position: fixed;
@@ -803,6 +789,11 @@ body {
   font-size: 28px;
   opacity: 0;
   animation: note-float 1.8s ease-out forwards;
+}
+.music-note.celebration-note {
+  z-index: 10001;
+  font-size: 36px;
+  animation: note-float 2.4s ease-out forwards;
 }
 
 @keyframes note-float {
@@ -2485,6 +2476,7 @@ function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
   }
 
   document.getElementById('win-overlay').classList.add('visible');
+  _fireCelebrationNotes();
 
   // Autoplay after 1 second (not for shared replay links — let user click play)
   // Live recording starts automatically with autoplay
@@ -2925,35 +2917,7 @@ function showToast(msg) {
 // ── Particles ────────────────────────────────────────────────
 
 function spawnParticles() {
-  const colors = ['#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f472b6', '#38bdf8', '#fb923c', '#c084fc'];
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-
-  // Sparkles burst from both sides — big, screen-filling
-  for (let side = 0; side < 2; side++) {
-    const startX = side === 0 ? -10 : w + 10;
-    const dirX = side === 0 ? 1 : -1;
-
-    for (let i = 0; i < 40; i++) {
-      const p = document.createElement('div');
-      p.className = 'particle';
-      const size = 6 + Math.random() * 18;
-      const startY = h * (0.05 + Math.random() * 0.8);
-      const tx = dirX * (100 + Math.random() * (w * 0.5));
-      const ty = -120 + Math.random() * 240;
-      p.style.cssText = `
-        left: ${startX}px; top: ${startY}px;
-        width: ${size}px; height: ${size}px;
-        background: ${colors[(side * 5 + i) % colors.length]};
-        --tx: ${tx.toFixed(1)}px;
-        --ty: ${ty.toFixed(1)}px;
-        --dur: ${(0.8 + Math.random() * 1.4).toFixed(2)}s;
-        --delay: ${(Math.random() * 0.35).toFixed(2)}s;
-      `;
-      document.body.appendChild(p);
-      p.addEventListener('animationend', () => p.remove(), { once: true });
-    }
-  }
+  _fireCelebrationNotes();
 }
 
 // ── Navigation & reset ────────────────────────────────────────
@@ -3115,6 +3079,35 @@ _titleEl.addEventListener('mousemove', (e) => _spawnNote(e.clientX, e.clientY));
 _titleEl.addEventListener('touchmove', (e) => {
   _spawnNote(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: true });
+
+// Celebration burst of musical notes on win
+function _fireCelebrationNotes() {
+  const symbols = ['♪', '♫', '♩', '♬'];
+  const grid = document.getElementById('grid');
+  const gridRect = grid.getBoundingClientRect();
+  for (let i = 0; i < 50; i++) {
+    setTimeout(() => {
+      const note = document.createElement('span');
+      note.className = 'music-note celebration-note';
+      note.textContent = symbols[Math.random() * 4 | 0];
+      const hue = (180 + Math.random() * 310) % 360;
+      note.style.color = `hsl(${hue}, 75%, 58%)`;
+      // Spawn from random position within the grid area
+      const rx = Math.random();
+      note.style.left = `${gridRect.left + rx * gridRect.width}px`;
+      const ry = Math.random();
+      note.style.top = `${gridRect.top + ry * gridRect.height}px`;
+      // Explode outward: left side goes left, right side goes right
+      const drift = (rx - 0.5) * window.innerWidth * 0.8;
+      note.style.setProperty('--nx', `${drift}px`);
+      // Notes from top go more up, bottom notes go less up
+      note.style.setProperty('--ny', `${-500 - (1 - ry) * 500}px`);
+      note.style.setProperty('--nr', `${(Math.random() - 0.5) * 80}deg`);
+      document.body.appendChild(note);
+      note.addEventListener('animationend', () => note.remove());
+    }, i * 50);
+  }
+}
 
 // Title hover ding: play a note hinting at today's optimal solution
 let _titleSolution = [];
