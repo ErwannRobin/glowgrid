@@ -138,7 +138,7 @@ body {
 
 .subtitle {
   font-size: 11px;
-  color: #334155;
+  color: rgba(148,163,184,0.6);
   text-transform: uppercase;
   letter-spacing: 1.5px;
   margin-top: 5px;
@@ -160,7 +160,7 @@ body {
   border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.07);
   background: rgba(255,255,255,0.04);
-  color: #475569;
+  color: rgba(148,163,184,0.6);
   font-size: 16px;
   cursor: pointer;
   display: flex;
@@ -184,7 +184,7 @@ body {
 
 .puzzle-label {
   font-size: 12px;
-  color: #334155;
+  color: rgba(148,163,184,0.6);
   letter-spacing: 0.5px;
   text-transform: uppercase;
   text-align: center;
@@ -842,13 +842,13 @@ body {
 /* ── Song picker ── */
 .song-link {
   display: inline-block;
-  margin-top: 10px;
-  margin-bottom: 40px;
+  margin-bottom: 4px;
   font-size: 13px;
   color: rgba(148,163,184,0.6);
   cursor: pointer;
   transition: color 0.2s;
   letter-spacing: 0.3px;
+  pointer-events: auto;
 }
 .song-link:hover { color: #93c5fd; }
 
@@ -1030,8 +1030,6 @@ body {
   </div>
 
   <div class="hint-info" id="hint-info"></div>
-
-  <div class="song-link" id="song-link" onclick="openSongPicker()">♪ Song Challenges</div>
 
 </div>
 
@@ -3120,7 +3118,7 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
-<footer class="footer">vibe coded with <svg width="14" height="14" viewBox="0 0 24 24" fill="white" style="vertical-align:-2px"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg> by <a href="http://erwann.lovable.app" target="_blank" rel="noopener">Erwann</a></footer>
+<footer class="footer"><span class="song-link" id="song-link" onclick="openSongPicker()">♪ Song Challenges</span><br>vibe coded with <svg width="14" height="14" viewBox="0 0 24 24" fill="white" style="vertical-align:-2px"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg> by <a href="http://erwann.lovable.app" target="_blank" rel="noopener">Erwann</a></footer>
 
 </body>
 </html>
