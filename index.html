@@ -2554,35 +2554,58 @@ function drawReplayFrame(ctx, W, H, step, clickedCell) {
   const replayTitle = isSongMode ? `♪ ${_activeSong.title}` : `Glow-Grid #${puzzleNumberFromKey(currentDateKey)}`;
   ctx.fillText(replayTitle, W / 2, 46);
 
-  // Grid
+  // Grid — mirrors the .win-grid.replay-mode CSS: offset radial highlight,
+  // colored border + glow on ON cells, yellow ring + 1.18× pop on the clicked cell
   const st = _replayStates[step];
-  for (let i = 0; i < SIZE * SIZE; i++) {
+  const sat = 75, light = 58;
+
+  const drawCell = (i, scale) => {
     const row = Math.floor(i / SIZE), col = i % SIZE;
-    const x = gridX + col * (cellSize + gap);
-    const y = gridY + row * (cellSize + gap);
+    const size = cellSize * scale;
+    const x = gridX + col * (cellSize + gap) - (size - cellSize) / 2;
+    const y = gridY + row * (cellSize + gap) - (size - cellSize) / 2;
     const hue = (180 + col * 40 + row * 50) % 360;
 
-    _canvasRoundRect(ctx, x, y, cellSize, cellSize, 12);
+    _canvasRoundRect(ctx, x, y, size, size, 12 * scale);
 
     if (st[i]) {
       const grad = ctx.createRadialGradient(
-        x + cellSize / 2, y + cellSize / 2, 0,
-        x + cellSize / 2, y + cellSize / 2, cellSize * 0.7
+        x + size * 0.38, y + size * 0.32, size * 0.05,
+        x + size / 2, y + size / 2, size * 0.7
       );
-      grad.addColorStop(0, `hsl(${hue}, 75%, 68%)`);
-      grad.addColorStop(1, `hsl(${hue}, 75%, 48%)`);
+      grad.addColorStop(0, `hsl(${hue}, ${sat - 15}%, ${light + 20}%)`);
+      grad.addColorStop(0.55, `hsl(${hue}, ${sat}%, ${light}%)`);
+      grad.addColorStop(1, `hsl(${hue}, ${sat + 5}%, ${light - 10}%)`);
       ctx.fillStyle = grad;
+      ctx.shadowColor = `hsla(${hue}, ${sat}%, ${light}%, 0.4)`;
+      ctx.shadowBlur = 24;
     } else {
       ctx.fillStyle = 'rgba(255,255,255,0.04)';
     }
     ctx.fill();
+    ctx.shadowBlur = 0;
 
-    ctx.strokeStyle = i === clickedCell
-      ? `hsl(${hue}, 85%, 72%)`
-      : 'rgba(255,255,255,0.06)';
-    ctx.lineWidth = i === clickedCell ? 3 : 1;
+    if (i === clickedCell) {
+      ctx.strokeStyle = 'rgba(250,204,21,0.7)';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = 'rgba(250,204,21,0.4)';
+      ctx.shadowBlur = 28;
+    } else if (st[i]) {
+      ctx.strokeStyle = `hsla(${hue}, ${sat}%, ${light + 15}%, 0.5)`;
+      ctx.lineWidth = 2;
+    } else {
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 2;
+    }
     ctx.stroke();
+    ctx.shadowBlur = 0;
+  };
+
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    if (i !== clickedCell) drawCell(i, 1);
   }
+  // Clicked cell drawn last so its pop overlaps neighbors, like z-index in CSS
+  if (clickedCell >= 0) drawCell(clickedCell, 1.18);
 }
 
 let _isRecordingShare = false;
