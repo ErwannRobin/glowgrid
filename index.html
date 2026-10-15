@@ -2617,9 +2617,34 @@ let _liveRecordCanvas = null;
 let _liveRecordCtx = null;
 let _liveRecordVTrack = null;
 let _liveRecordChunks = [];
+let _liveRecordTicker = null;
+let _liveRecordFrame = { step: 0, clickedCell: -1 };
+const LIVE_RECORD_FPS = 30;
+
+// Push frames at a steady rate: with captureStream(0) a frame only exists when
+// requested, so one-shot requests per move drop frames and lose the final hold
+function _liveRecordTick() {
+  if (!_liveRecordCtx) return;
+  drawReplayFrame(_liveRecordCtx, 540, 540, _liveRecordFrame.step, _liveRecordFrame.clickedCell);
+  if (_liveRecordVTrack && _liveRecordVTrack.requestFrame) _liveRecordVTrack.requestFrame();
+}
+
+function _stopLiveRecordTicker() {
+  if (_liveRecordTicker) { clearInterval(_liveRecordTicker); _liveRecordTicker = null; }
+}
 
 // Start live recording of the replay (called when autoplay begins)
 function startLiveRecording() {
+  // Discard any unfinished recording (e.g. replay paused, then "Play again")
+  _stopLiveRecordTicker();
+  if (_liveRecorder && _liveRecorder.state === 'recording') {
+    _liveRecorder.onstop = null;
+    _liveRecorder.ondataavailable = null;
+    _liveRecorder.stop();
+    _liveRecorder.stream.getTracks().forEach(t => t.stop());
+    _stopAudioCapture();
+  }
+  _liveRecorder = null;
   _preparedShareFile = null;
   _liveRecordChunks = [];
 
@@ -2659,30 +2684,34 @@ function startLiveRecording() {
       'video/webm',
     ];
     const mimeType = codecs.find(t => MediaRecorder.isTypeSupported(t));
-    _liveRecorder = mimeType
+    const recorder = mimeType
       ? new MediaRecorder(combined, { mimeType })
       : new MediaRecorder(combined);
+    _liveRecorder = recorder;
 
-    _liveRecorder.ondataavailable = e => { if (e.data.size) _liveRecordChunks.push(e.data); };
-    _liveRecorder.onstop = () => {
+    recorder.ondataavailable = e => { if (e.data.size) _liveRecordChunks.push(e.data); };
+    recorder.onstop = () => {
+      _stopLiveRecordTicker();
       _stopAudioCapture();
       combined.getTracks().forEach(t => t.stop());
       // Strip codec params ("video/mp4;codecs=...") — share targets expect a bare MIME type
-      const ext = (_liveRecorder.mimeType || '').includes('mp4') ? 'mp4' : 'webm';
+      const ext = (recorder.mimeType || '').includes('mp4') ? 'mp4' : 'webm';
       const blob = new Blob(_liveRecordChunks, { type: `video/${ext}` });
       if (blob.size > 0) {
         const pNum = puzzleNumberFromKey(currentDateKey);
         _preparedShareFile = new File([blob], `glowgrid-replay-${pNum}.${ext}`, { type: blob.type });
       }
-      _liveRecorder = null;
+      if (_liveRecorder === recorder) _liveRecorder = null;
     };
-    _liveRecorder.onerror = () => { _stopAudioCapture(); _liveRecorder = null; };
+    recorder.onerror = () => { _stopLiveRecordTicker(); _stopAudioCapture(); _liveRecorder = null; };
 
-    // Draw initial frame
-    drawReplayFrame(_liveRecordCtx, W, H, 0, -1);
-    if (_liveRecordVTrack.requestFrame) _liveRecordVTrack.requestFrame();
-    _liveRecorder.start();
+    // Start recording before the first frame so it isn't dropped
+    _liveRecordFrame = { step: 0, clickedCell: -1 };
+    recorder.start();
+    _liveRecordTick();
+    _liveRecordTicker = setInterval(_liveRecordTick, 1000 / LIVE_RECORD_FPS);
   } catch (e) {
+    _stopLiveRecordTicker();
     _liveRecorder = null;
   }
 }
@@ -2691,8 +2720,8 @@ function startLiveRecording() {
 function updateLiveRecording(step) {
   if (!_liveRecordCtx || !_liveRecorder) return;
   const clickedCell = step > 0 ? moveHistory[step - 1].cellIndex : -1;
-  drawReplayFrame(_liveRecordCtx, 540, 540, step, clickedCell);
-  if (_liveRecordVTrack && _liveRecordVTrack.requestFrame) _liveRecordVTrack.requestFrame();
+  _liveRecordFrame = { step, clickedCell };
+  _liveRecordTick(); // show the move immediately, not on the next tick
 }
 
 // Called when replay finishes or is stopped
