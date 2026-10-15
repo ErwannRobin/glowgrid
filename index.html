@@ -2667,9 +2667,10 @@ function startLiveRecording() {
     _liveRecorder.onstop = () => {
       _stopAudioCapture();
       combined.getTracks().forEach(t => t.stop());
-      const blob = new Blob(_liveRecordChunks, { type: _liveRecorder.mimeType || 'video/webm' });
+      // Strip codec params ("video/mp4;codecs=...") — share targets expect a bare MIME type
+      const ext = (_liveRecorder.mimeType || '').includes('mp4') ? 'mp4' : 'webm';
+      const blob = new Blob(_liveRecordChunks, { type: `video/${ext}` });
       if (blob.size > 0) {
-        const ext = (blob.type || '').includes('mp4') ? 'mp4' : 'webm';
         const pNum = puzzleNumberFromKey(currentDateKey);
         _preparedShareFile = new File([blob], `glowgrid-replay-${pNum}.${ext}`, { type: blob.type });
       }
@@ -2837,8 +2838,34 @@ function drawHeatmapFrame(ctx, W, H) {
   }
 }
 
+// Save the prepared video/image locally and copy the caption, so it can be posted manually
+function downloadShareFile(text) {
+  const file = _preparedShareFile;
+  if (file) {
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+  const what = !file ? '' : file.type.startsWith('video/') ? 'Video saved' : 'Image saved';
+  navigator.clipboard.writeText(text)
+    .then(() => showToast(what ? `${what} · caption copied!` : 'Copied to clipboard!'))
+    .catch(() => showToast(what || 'Copy failed — try again'));
+}
+
 async function shareResult() {
   const text = buildShareText();
+
+  // Desktop share sheets (Chrome on Windows/macOS/Linux) often reject or drop
+  // video files, so on desktop hand the file over directly instead
+  if (!isTouchDevice()) {
+    downloadShareFile(text);
+    return;
+  }
 
   try {
     if (navigator.share) {
@@ -2853,15 +2880,10 @@ async function shareResult() {
       return;
     }
 
-    // Fallback: clipboard
-    await navigator.clipboard.writeText(text);
-    showToast('Copied to clipboard!');
+    // No Web Share API: save the file and copy the caption
+    downloadShareFile(text);
   } catch (e) {
-    if (e.name !== 'AbortError') {
-      navigator.clipboard.writeText(text)
-        .then(() => showToast('Copied to clipboard!'))
-        .catch(() => showToast('Copy failed — try again'));
-    }
+    if (e.name !== 'AbortError') downloadShareFile(text);
   }
 }
 
