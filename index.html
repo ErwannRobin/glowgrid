@@ -775,7 +775,10 @@ body {
   transition: opacity 0.2s ease, transform 0.2s ease;
   pointer-events: none;
   z-index: 200;
-  white-space: nowrap;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  text-align: center;
+  text-wrap: balance;
 }
 
 .toast.show {
@@ -1102,7 +1105,7 @@ body {
     <div class="win-streak" id="win-streak" style="display:none"></div>
     <div class="win-actions">
       <button class="btn-share" id="btn-share" onclick="shareResult()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share</button>
-      <button class="btn-play-again" id="btn-try-again" onclick="resetPuzzle()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-11.36L3 10"/></svg> Play again</button>
+      <button class="btn-play-again" id="btn-try-again" onclick="startOver()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-11.36L3 10"/></svg> Start over</button>
     </div>
   </div>
 </div>
@@ -2473,8 +2476,8 @@ function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
     tryBtn.innerHTML = '🎮 Try yourself';
     tryBtn.onclick = replayMode && isSongMode ? resetPuzzle : tryYourself;
   } else {
-    tryBtn.innerHTML = retrySvg + ' Play again';
-    tryBtn.onclick = resetPuzzle;
+    tryBtn.innerHTML = retrySvg + ' Start over';
+    tryBtn.onclick = startOver;
   }
 
   document.getElementById('win-overlay').classList.add('visible');
@@ -2635,7 +2638,7 @@ function _stopLiveRecordTicker() {
 
 // Start live recording of the replay (called when autoplay begins)
 function startLiveRecording() {
-  // Discard any unfinished recording (e.g. replay paused, then "Play again")
+  // Discard any unfinished recording (e.g. replay paused, then "Start over")
   _stopLiveRecordTicker();
   if (_liveRecorder && _liveRecorder.state === 'recording') {
     _liveRecorder.onstop = null;
@@ -2982,12 +2985,12 @@ function showSongSolution() {
   showWinOverlay({ replayMode: true });
 }
 
-function showToast(msg) {
+function showToast(msg, duration = 2200) {
   const toast = document.getElementById('toast');
   toast.textContent = msg;
   toast.classList.add('show');
   clearTimeout(toast._timer);
-  toast._timer = setTimeout(() => toast.classList.remove('show'), 2200);
+  toast._timer = setTimeout(() => toast.classList.remove('show'), duration);
 }
 
 // ── Particles ────────────────────────────────────────────────
@@ -3034,6 +3037,14 @@ function resetPuzzle() {
   } else if (location.search) {
     history.pushState({}, '', location.pathname);
   }
+}
+
+// Win screen "Start over": resets without confirmation, so point out that
+// Back restores the results (only own wins push a win entry to history)
+function startOver() {
+  const canGoBack = new URLSearchParams(location.search).get('own') === '1';
+  resetPuzzle();
+  if (canGoBack) showToast('Tip: go back in your browser to see your results again', 4000);
 }
 
 let _confirmCb = null;
