@@ -1,7 +1,7 @@
 {
   "name": "GlowGrid",
   "short_name": "GlowGrid",
-  "description": "Glow up the grid for a daily unique solution. What does yours sound like?",
+  "description": "Free daily puzzle game inspired by Lights Out. Light up all 25 cells of the 5×5 grid. A new puzzle with a guaranteed solution every day. Play in your browser.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",

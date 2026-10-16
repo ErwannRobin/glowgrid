@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#3b82f6" />
+<link rel="canonical" href="https://glow-grid.vercel.app/about.html" />
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<title>About Glow-Grid – How to Play the Daily Puzzle</title>
+<meta name="description" content="Learn how to play Glow-Grid, a free daily puzzle game inspired by Lights Out. Rules, features and the open-source code." />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="About Glow-Grid – How to Play the Daily Puzzle" />
+<meta property="og:description" content="Learn how to play Glow-Grid, a free daily puzzle game inspired by Lights Out. Rules, features and the open-source code." />
+<meta property="og:url" content="https://glow-grid.vercel.app/about.html" />
+<meta property="og:image" content="https://glow-grid.vercel.app/og-image.png?v=2" />
+<style>
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #0f172a;
+  color: #cbd5e1;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.6;
+}
+main { max-width: 640px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 28px; margin: 0 0 8px; color: #f1f5f9; }
+h2 { font-size: 20px; margin: 32px 0 8px; color: #e2e8f0; }
+p, li { font-size: 16px; }
+a { color: #93c5fd; }
+.play {
+  display: inline-block;
+  margin: 8px 0 0;
+  padding: 10px 20px;
+  border-radius: 12px;
+  background: #3b82f6;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "AboutPage",
+  "name": "About Glow-Grid",
+  "url": "https://glow-grid.vercel.app/about.html",
+  "isPartOf": { "@type": "WebSite", "name": "Glow-Grid", "url": "https://glow-grid.vercel.app/" }
+}
+</script>
+</head>
+<body>
+<main>
+  <h1>About Glow-Grid</h1>
+  <p>Glow-Grid is a free daily puzzle game inspired by <a href="https://en.wikipedia.org/wiki/Lights_Out_(game)" target="_blank" rel="noopener">Lights Out</a>. Light up all 25 cells of the grid. Every day brings a new puzzle, and every puzzle has a solution.</p>
+  <a class="play" href="/">Play today's puzzle</a>
+
+  <h2>How to play</h2>
+  <ol>
+    <li>Tap any cell to toggle it and its neighbors.</li>
+    <li>If the cell you tap is <strong>ON</strong>, it flips the cells next to it in a <strong>+</strong> pattern (up, down, left, right).</li>
+    <li>If the cell you tap is <strong>OFF</strong>, it flips the cells next to it in a <strong>×</strong> pattern (the four diagonals).</li>
+    <li>Light up all 25 cells to win.</li>
+    <li>Try to find the shortest path. Fewer moves is better.</li>
+  </ol>
+
+  <h2>Daily puzzle</h2>
+  <p>The puzzle is created from the date, so everyone gets the same grid on the same day. Each puzzle starts from a solved grid and is scrambled with random moves. This is why it can always be solved. You can also go back to play older puzzles and keep a daily streak.</p>
+
+  <h2>Features</h2>
+  <ul>
+    <li>A new puzzle every day, with a streak counter</li>
+    <li>Each cell plays a note, so your solution makes a melody</li>
+    <li>Song challenges</li>
+    <li>Hints when you are close to solving</li>
+    <li>Replay of your solution, a heatmap of your taps, and sharing</li>
+    <li>Works on phone and desktop, and offline after the first visit</li>
+  </ul>
+
+  <h2>Open source</h2>
+  <p>Glow-Grid is a single HTML file with no frameworks and no build step. The code is free to read on <a href="https://github.com/erwannRobin/glowgrid/" target="_blank" rel="noopener">GitHub</a>.</p>
+
+  <h2>Author</h2>
+  <p>Made by <a href="http://erwann.lovable.app" target="_blank" rel="noopener">Erwann</a>.</p>
+
+  <p><a href="/">← Back to the game</a></p>
+</main>
+</body>
+</html>
