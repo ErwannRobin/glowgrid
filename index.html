@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<!-- playables-head: the YouTube Playables build injects the SDK here (see scripts/build-playables.js) -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Glow-Grid – Free Daily Lights Out Style Puzzle Game</title>
+<!-- web-only: site metadata, PWA and social cards (stripped from the YouTube Playables build) -->
 <meta name="theme-color" content="#3b82f6" />
 <meta name="google-site-verification" content="vpqNm8qBzPtVlbvHzh_-u87fIYw5BjIWJJIIk31ZCMI" />
 <meta name="mobile-web-app-capable" content="yes" />
@@ -13,7 +16,6 @@
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-<title>Glow-Grid – Free Daily Lights Out Style Puzzle Game</title>
 <meta name="description" content="Free daily puzzle game inspired by Lights Out. Light up all 25 cells of the 5×5 grid. A new puzzle with a guaranteed solution every day. Play in your browser." />
 
 <!-- Open Graph -->
@@ -48,6 +50,7 @@
   "image": "https://glow-grid.vercel.app/og-image.png?v=2"
 }
 </script>
+<!-- /web-only -->
 
 <style>
 /* ── Fluid sizing tokens ── */
@@ -677,6 +680,13 @@ body {
   letter-spacing: 0.2px;
 }
 
+.win-next {
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(148,163,184,0.7);
+  margin: -8px 0 18px;
+}
+
 .win-actions {
   display: flex;
   gap: 12px;
@@ -1023,10 +1033,94 @@ body {
   transition: color 0.2s, border-color 0.2s;
 }
 .song-close:hover { color: #93c5fd; border-color: rgba(96,165,250,0.3); }
+
+/* ── YouTube Playables (html.playables is set by the Playables build) ── */
+#gg-loading, #haptic-toggle { display: none; }
+
+html.playables {
+  /* Size cells from both viewport axes: YouTube can embed the game at any
+     aspect ratio from 9:32 to 32:9 and the page must never scroll. */
+  --cell: clamp(26px, min(13.5vw, 8.4vh), 70px);
+  --gap:  clamp(4px, min(2vw, 1.3vh), 12px);
+  --cell-r: clamp(8px, min(3.5vw, 2.2vh), 20px);
+  height: 100%;
+  overflow: hidden;
+}
+html.playables body {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: clamp(8px, 2vh, 24px) 16px;
+}
+html.playables .container { gap: clamp(6px, 2.2vh, 22px); }
+
+/* Wide and short viewports: header and controls on the left, grid on the right */
+@media (min-aspect-ratio: 5/4) and (max-height: 640px) {
+  html.playables { --cell: clamp(26px, min(13.5vw, 15vh), 70px); --gap: clamp(4px, 2.2vh, 12px); }
+  html.playables .container {
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(5, auto);
+    align-content: center;
+    align-items: center;
+    justify-content: center;
+    justify-items: center;
+    column-gap: clamp(20px, 6vw, 64px);
+    row-gap: clamp(6px, 2.4vh, 16px);
+    max-width: none;
+  }
+  html.playables .container > .grid { grid-column: 2; grid-row: 1 / -1; }
+}
+
+html.playables #gg-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: #0a0f1e;
+  color: rgba(148,163,184,0.7);
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  transition: opacity 0.3s ease;
+}
+html.playables #gg-loading.done { opacity: 0; pointer-events: none; }
+.gg-loading-dots { display: flex; gap: 8px; }
+.gg-loading-dots span {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: hsl(var(--h), 75%, 58%);
+  box-shadow: 0 0 12px hsla(var(--h), 75%, 58%, 0.6);
+  animation: gg-loading-pulse 1s ease-in-out infinite;
+}
+.gg-loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+.gg-loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes gg-loading-pulse {
+  0%, 100% { opacity: 0.25; transform: scale(0.85); }
+  50%      { opacity: 1;    transform: scale(1); }
+}
+
+/* Paused by YouTube: freeze animations and ignore input until resumed */
+html.playables.paused body { pointer-events: none; }
+html.playables.paused *,
+html.playables.paused *::before,
+html.playables.paused *::after { animation-play-state: paused !important; }
 </style>
 </head>
 
 <body>
+
+<!-- Loading screen, shown only in the YouTube Playables build until the cloud save is loaded -->
+<div id="gg-loading" role="status" aria-live="polite">
+  <div class="gg-loading-dots"><span style="--h:180"></span><span style="--h:260"></span><span style="--h:340"></span></div>
+  <div>Loading…</div>
+</div>
 
 <div class="bg-orb"></div>
 <div class="bg-orb"></div>
@@ -1036,6 +1130,7 @@ body {
 <div class="sound-ctrl" id="sound-ctrl">
   <button class="sound-toggle" id="sound-toggle" onclick="toggleSound()" aria-label="Toggle sound" title="Toggle sound"><svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" opacity="0"/></svg></button>
   <button class="sound-toggle" id="music-toggle" onclick="toggleMusicMode()" aria-label="Toggle melodic sound" title="Melodic mode: consistent pitch"><svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z"/></svg></button>
+  <button class="sound-toggle" id="haptic-toggle" onclick="toggleHaptics()" aria-label="Toggle vibration" title="Vibration"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M4 8v8M20 8v8"/></svg></button>
 </div>
 
 <div class="container">
@@ -1105,8 +1200,11 @@ body {
     <div class="win-moves-line" id="win-moves-line"></div>
     <div class="win-hints-line" id="win-hints-line" style="display:none"></div>
     <div class="win-streak" id="win-streak" style="display:none"></div>
+    <div class="win-next" id="win-next" style="display:none"></div>
     <div class="win-actions">
+      <!-- web-only -->
       <button class="btn-share" id="btn-share" onclick="shareResult()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share</button>
+      <!-- /web-only -->
       <button class="btn-play-again" id="btn-try-again" onclick="startOver()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-11.36L3 10"/></svg> Start over</button>
     </div>
   </div>
@@ -1127,6 +1225,13 @@ body {
 <div class="toast" id="toast"></div>
 
 <script>
+// ── Platform ─────────────────────────────────────────────────
+// IS_PLAYABLE: this page is the YouTube Playables build (flag injected by
+// scripts/build-playables.js). YT: the Playables SDK, when actually running
+// inside YouTube (or the local SDK mock). Every ytgame call goes through YT.
+const IS_PLAYABLE = !!window.GG_PLAYABLES;
+const YT = (typeof ytgame !== 'undefined' && ytgame.IN_PLAYABLES_ENV) ? ytgame : null;
+
 const SIZE = 5;
 const MAX_DAYS_BACK = 60;
 
@@ -1241,8 +1346,8 @@ const SONGS = {
   },
 };
 
-// Detect song mode from URL
-const _songParam = new URLSearchParams(location.search).get('song');
+// Detect song mode from URL (Playables has no URLs to share, so no song mode)
+const _songParam = IS_PLAYABLE ? null : new URLSearchParams(location.search).get('song');
 const _activeSong = _songParam && SONGS[_songParam] ? SONGS[_songParam] : null;
 const isSongMode = !!_activeSong;
 
@@ -1324,31 +1429,129 @@ function compareDateKeys(a, b) {
   return da.getTime() - db.getTime();
 }
 
-// ── Streak ───────────────────────────────────────────────────
+// ── Saved progress ───────────────────────────────────────────
+// One in-memory object, persisted to localStorage on the web and to the
+// YouTube cloud save (a single JSON string) in the Playables build.
+
+const save = {
+  streak: 0,             // consecutive days with today's puzzle solved
+  lastStreakDate: null,  // date key of the last day counted in the streak
+  solved: {},            // date key → fewest moves used to solve that puzzle
+  sound: true,           // web only: in-game mute (Playables follows YouTube's mute)
+  musicMode: false,      // melodic sound mode
+  haptics: true,         // vibration on taps
+};
+let _cloudSaveReady = false; // saveData is rejected until loadData has succeeded
+
+function _lsGet(key) { try { return localStorage.getItem(key); } catch (_) { return null; } }
+function _lsSet(key, val) { try { localStorage.setItem(key, val); } catch (_) {} }
+
+// Copies only well-typed fields, so saves from older versions (or garbage) never break the game
+function _applySaveData(data) {
+  if (!data || typeof data !== 'object') return;
+  if (Number.isInteger(data.streak) && data.streak >= 0) save.streak = data.streak;
+  if (typeof data.lastStreakDate === 'string') save.lastStreakDate = data.lastStreakDate;
+  if (data.solved && typeof data.solved === 'object' && !Array.isArray(data.solved)) {
+    for (const [key, mv] of Object.entries(data.solved)) {
+      if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(key) && Number.isInteger(mv) && mv > 0) save.solved[key] = mv;
+    }
+  }
+  if (typeof data.sound === 'boolean') save.sound = data.sound;
+  if (typeof data.musicMode === 'boolean') save.musicMode = data.musicMode;
+  if (typeof data.haptics === 'boolean') save.haptics = data.haptics;
+}
+
+function loadLocalSave() {
+  let solved = null;
+  try { solved = JSON.parse(_lsGet('glowgrid-solved') || 'null'); } catch (_) {}
+  _applySaveData({
+    streak: parseInt(_lsGet('glowgrid-streak') || '0', 10) || 0,
+    lastStreakDate: _lsGet('glowgrid-last-streak-date'),
+    solved,
+    sound: _lsGet('gg_sound') !== 'off',
+    musicMode: _lsGet('gg_music_mode') === 'on',
+  });
+}
+
+async function loadCloudSave() {
+  try {
+    const raw = await YT.game.loadData();
+    _cloudSaveReady = true;
+    if (raw) _applySaveData(JSON.parse(raw));
+  } catch (e) {
+    // Unreadable save: keep defaults. If loadData itself failed, saveData stays off
+    // so a transient error can't overwrite the player's real progress.
+    try { YT.health.logError(); } catch (_) {}
+  }
+}
+
+function persistSave() {
+  if (!YT) {
+    _lsSet('glowgrid-streak', save.streak);
+    if (save.lastStreakDate) _lsSet('glowgrid-last-streak-date', save.lastStreakDate);
+    _lsSet('glowgrid-solved', JSON.stringify(save.solved));
+    _lsSet('gg_sound', save.sound ? 'on' : 'off');
+    _lsSet('gg_music_mode', save.musicMode ? 'on' : 'off');
+    return;
+  }
+  if (!_cloudSaveReady) return;
+  const { sound, ...data } = save; // YouTube owns the mute state
+  YT.game.saveData(JSON.stringify({ v: 1, ...data })).catch(() => {
+    try { YT.health.logWarning(); } catch (_) {}
+  });
+}
+
+if (!IS_PLAYABLE) loadLocalSave();
+
+// ── Streak & solved puzzles ──────────────────────────────────
 
 function getStreak() {
-  return parseInt(localStorage.getItem('glowgrid-streak') || '0');
+  return save.streak;
 }
 
 function tryUpdateStreak() {
   if (currentDateKey !== todayKey()) return false;
 
-  const lastDate = localStorage.getItem('glowgrid-last-streak-date');
+  const lastDate = save.lastStreakDate;
   const today = todayKey();
   if (lastDate === today) return false; // already counted today
 
-  const streak = getStreak();
   const yesterday = offsetDate(today, -1);
-  const newStreak = lastDate === yesterday ? streak + 1 : 1;
-
-  localStorage.setItem('glowgrid-streak', newStreak);
-  localStorage.setItem('glowgrid-last-streak-date', today);
+  save.streak = lastDate === yesterday ? save.streak + 1 : 1;
+  save.lastStreakDate = today;
   return true;
 }
 
 function refreshStreakDisplay() {
   const s = getStreak();
   document.getElementById('streak-val').textContent = s > 0 ? s : '—';
+}
+
+function solvedCount() {
+  return Object.keys(save.solved).length;
+}
+
+function markSolved(key, moveCount) {
+  const prev = save.solved[key];
+  if (!prev || moveCount < prev) save.solved[key] = moveCount;
+  if (!prev) sendScore();
+}
+
+// Leaderboard score = number of puzzles solved, which is always the best
+// value in the save (it never decreases)
+function sendScore() {
+  if (!YT) return;
+  YT.engagement.sendScore({ value: solvedCount() }).catch(() => {});
+}
+
+// Puzzles the date nav can reach that haven't been solved yet
+function unsolvedPuzzleCount() {
+  const today = todayKey();
+  let n = 0;
+  for (let k = 0; k <= MAX_DAYS_BACK; k++) {
+    if (!save.solved[offsetDate(today, -k)]) n++;
+  }
+  return n;
 }
 
 // ── Patterns ────────────────────────────────────────────────
@@ -1745,7 +1948,7 @@ function _endLongPress(originCell) {
 }
 
 function handleClick(i, cell) {
-  if (_isConfirmVisible()) return;
+  if (_gamePaused || _isConfirmVisible()) return;
   const wasHintCell = activeHintCell === i; // capture before clearHintHighlight
   clearHintHighlight();
   hintPath = null;
@@ -1813,6 +2016,7 @@ function handleKey(e, i) {
 
 // ── Global keyboard shortcuts ─────────────────────────────────
 document.addEventListener('keydown', e => {
+  if (_gamePaused) return;
   // Ignore when win overlay or confirm dialog is visible, or an input is focused
   if (document.getElementById('win-overlay').classList.contains('visible')) return;
   if (_isConfirmVisible()) return;
@@ -1902,6 +2106,7 @@ function _ensureHapticDOM() {
 }
 
 function hapticImpact() {
+  if (!save.haptics) return;
   if (navigator.vibrate) {
     navigator.vibrate(8);
     return;
@@ -1915,8 +2120,10 @@ function hapticImpact() {
 
 let _audioCtx = null;
 let _audioUnlocked = false;
-let soundEnabled = localStorage.getItem('gg_sound') !== 'off';
-let songModeAudio = isSongMode || localStorage.getItem('gg_music_mode') === 'on';
+// Playables: YouTube's mute button is the only sound switch (no in-game mute)
+let soundEnabled = IS_PLAYABLE ? (YT ? YT.system.isAudioEnabled() : true) : save.sound;
+let songModeAudio = isSongMode || save.musicMode;
+let _gamePaused = false;      // Playables: true between ytgame onPause and onResume
 let _masterGain = null;       // all sounds route through this
 let _recordingDest = null;    // MediaStreamDestination for video recording
 
@@ -1928,7 +2135,7 @@ _silentAudio.setAttribute('playsinline', '');
 
 function _getCtx() {
   if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (_audioCtx.state === 'suspended') _audioCtx.resume();
+  if (_audioCtx.state === 'suspended' && soundEnabled && !_gamePaused) _audioCtx.resume();
   if (!_masterGain) {
     _masterGain = _audioCtx.createGain();
     _masterGain.connect(_audioCtx.destination);
@@ -1964,9 +2171,11 @@ function _stopAudioCapture() {
 // 2) Creates & resumes AudioContext
 // 3) Plays silent buffer through AudioContext
 function _unlockAudio() {
+  if (!soundEnabled || _gamePaused) return;
   try {
-    // Silent <audio> play — switches iOS audio session category
-    if (!_audioUnlocked) {
+    // Silent <audio> play — switches iOS audio session category.
+    // Not in Playables: YouTube requires honoring the device's silent switch.
+    if (!_audioUnlocked && !IS_PLAYABLE) {
       _silentAudio.play().then(() => { _audioUnlocked = true; }).catch(() => {});
     }
     const ctx = _getCtx();
@@ -1988,17 +2197,26 @@ function initSoundUI() {
     : '<svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" opacity="0"/><line x1="18" y1="9" x2="22" y2="15" stroke="white" stroke-width="2"/><line x1="22" y1="9" x2="18" y2="15" stroke="white" stroke-width="2"/></svg>';
   btn.classList.toggle('sound-on', soundEnabled);
 
+  btn.style.display = IS_PLAYABLE ? 'none' : '';
+
   const musicBtn = document.getElementById('music-toggle');
   if (isSongMode) {
     musicBtn.style.display = 'none';
   } else {
     musicBtn.classList.toggle('sound-on', !songModeAudio);
   }
+
+  // Playables requires a vibration toggle whenever haptics are used (touch only)
+  const hapticBtn = document.getElementById('haptic-toggle');
+  hapticBtn.style.display = IS_PLAYABLE && isTouchDevice() ? 'flex' : 'none';
+  hapticBtn.classList.toggle('sound-on', save.haptics);
 }
 
 function toggleSound() {
+  if (IS_PLAYABLE) return; // YouTube's mute button owns sound
   soundEnabled = !soundEnabled;
-  localStorage.setItem('gg_sound', soundEnabled ? 'on' : 'off');
+  save.sound = soundEnabled;
+  persistSave();
   initSoundUI();
   const kbHint = isTouchDevice() ? '' : ' (S)';
   showToast(soundEnabled ? `Sound on${kbHint}` : `Sound off${kbHint}`);
@@ -2007,10 +2225,19 @@ function toggleSound() {
 
 function toggleMusicMode() {
   songModeAudio = !songModeAudio;
-  localStorage.setItem('gg_music_mode', songModeAudio ? 'on' : 'off');
+  save.musicMode = songModeAudio;
+  persistSave();
   initSoundUI();
   const kbHint = isTouchDevice() ? '' : ' (M)';
   showToast(songModeAudio ? `Melodic mode on${kbHint}` : `Game mode on${kbHint}`);
+}
+
+function toggleHaptics() {
+  save.haptics = !save.haptics;
+  persistSave();
+  initSoundUI();
+  showToast(save.haptics ? 'Vibration on' : 'Vibration off');
+  hapticImpact();
 }
 
 function playDing() {
@@ -2180,7 +2407,7 @@ function scheduleNextReplayStep() {
   if (_replayStep >= moveHistory.length) {
     _replayPlaying = false;
     updateReplayUI();
-    stopLiveRecording();
+    if (!IS_PLAYABLE) stopLiveRecording();
     return;
   }
 
@@ -2198,7 +2425,7 @@ function scheduleNextReplayStep() {
     _replayStep++;
     renderCurrentView(_replayStep);
     updateReplayUI();
-    updateLiveRecording(_replayStep);
+    if (!IS_PLAYABLE) updateLiveRecording(_replayStep);
 
     // Play sound for this move
     if (soundEnabled && _replayStep > 0) {
@@ -2323,13 +2550,14 @@ function switchWinView(mode) {
 }
 
 function startAutoplay() {
+  _autoplayTimer = null;
   if (!document.getElementById('win-overlay').classList.contains('visible')) return;
   if (_replayPlaying) return;
   _replayStep = 0;
   renderCurrentView(0);
   _replayPlaying = true;
   updateReplayUI();
-  startLiveRecording();
+  if (!IS_PLAYABLE) startLiveRecording();
   scheduleNextReplayStep();
 }
 
@@ -2469,7 +2697,20 @@ function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
   renderReplayStep(0);
 
   // Share button
-  document.getElementById('btn-share').style.display = replayMode ? 'none' : '';
+  const shareBtn = document.getElementById('btn-share');
+  if (shareBtn) shareBtn.style.display = replayMode ? 'none' : '';
+
+  // What's left to play (Playables must say when there is no more content)
+  const nextEl = document.getElementById('win-next');
+  const unsolved = unsolvedPuzzleCount();
+  if (!replayMode && !isSongMode && save.solved[todayKey()]) {
+    nextEl.textContent = unsolved === 0
+      ? 'You\'ve solved every puzzle! A new one arrives tomorrow.'
+      : `New puzzle tomorrow · ${unsolved} earlier puzzle${unsolved === 1 ? '' : 's'} left to solve (‹)`;
+    nextEl.style.display = '';
+  } else {
+    nextEl.style.display = 'none';
+  }
 
   // Replay / Try yourself button
   const tryBtn = document.getElementById('btn-try-again');
@@ -2483,6 +2724,7 @@ function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
   }
 
   document.getElementById('win-overlay').classList.add('visible');
+  fitWinCard();
   _fireCelebrationNotes();
 
   // Autoplay after 1 second (not for shared replay links — let user click play)
@@ -2491,6 +2733,20 @@ function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
     _autoplayTimer = setTimeout(() => startAutoplay(), 1000);
   }
 }
+
+// Shrink the win card on viewports too short or narrow for it (landscape
+// phones, wide YouTube embeds) so nothing is cut off
+function fitWinCard() {
+  const card = document.querySelector('.win-card');
+  card.style.zoom = '';
+  const zoom = Math.min(1,
+    (window.innerHeight - 16) / card.offsetHeight,
+    (window.innerWidth - 16) / card.offsetWidth);
+  if (zoom < 1) card.style.zoom = zoom.toFixed(3);
+}
+window.addEventListener('resize', () => {
+  if (document.getElementById('win-overlay').classList.contains('visible')) fitWinCard();
+});
 
 function checkWin() {
   if (!state.every(v => v)) return;
@@ -2503,14 +2759,19 @@ function checkWin() {
     showWinOverlay({ streakUpdated: false });
   } else {
     const streakUpdated = tryUpdateStreak();
+    markSolved(currentDateKey, moves);
+    persistSave();
     refreshStreakDisplay();
+    refreshPuzzleLabel();
 
     // Push win state to browser history so back button can restore it
-    const puzzleNum = puzzleNumberFromKey(currentDateKey);
-    const replayEncoded = encodeMoves(moveHistory);
-    const mmParam = songModeAudio ? '&mm=1' : '';
-    const winUrl = `${location.pathname}?p=${puzzleNum}&r=${replayEncoded}&own=1${mmParam}`;
-    history.pushState({ win: true }, '', winUrl);
+    if (!IS_PLAYABLE) {
+      const puzzleNum = puzzleNumberFromKey(currentDateKey);
+      const replayEncoded = encodeMoves(moveHistory);
+      const mmParam = songModeAudio ? '&mm=1' : '';
+      const winUrl = `${location.pathname}?p=${puzzleNum}&r=${replayEncoded}&own=1${mmParam}`;
+      history.pushState({ win: true }, '', winUrl);
+    }
 
     showWinOverlay({ streakUpdated });
   }
@@ -2518,6 +2779,8 @@ function checkWin() {
   spawnParticles();
 }
 
+// web-only: share, video export and shared-replay URLs (stripped from the
+// YouTube Playables build, which allows no sharing, downloads or navigation)
 // ── Share ─────────────────────────────────────────────────────
 
 function encodeMoves(history) {
@@ -2965,6 +3228,7 @@ function tryYourself() {
   history.replaceState({}, '', location.pathname);
   loadCurrentPuzzle();
 }
+// /web-only
 
 function showSongSolution() {
   if (!isSongMode || !_activeSong) return;
@@ -3032,7 +3296,9 @@ function resetPuzzle() {
   document.getElementById('moves-val').textContent = moves;
   checkStuck();
   // Push clean URL so the win entry stays in history for back navigation
-  if (isSongMode) {
+  if (IS_PLAYABLE) {
+    // Single page, no URLs
+  } else if (isSongMode) {
     if (location.search !== `?song=${_songParam}`) {
       history.pushState({}, '', `${location.pathname}?song=${_songParam}`);
     }
@@ -3044,7 +3310,7 @@ function resetPuzzle() {
 // Win screen "Start over": resets without confirmation, so point out that
 // Back restores the results (only own wins push a win entry to history)
 function startOver() {
-  const canGoBack = new URLSearchParams(location.search).get('own') === '1';
+  const canGoBack = !IS_PLAYABLE && new URLSearchParams(location.search).get('own') === '1';
   resetPuzzle();
   if (canGoBack) showToast('Tip: go back in your browser to see your results again', 4000);
 }
@@ -3066,7 +3332,7 @@ function closeConfirm(ok) {
 }
 document.addEventListener('keydown', e => {
   if (!_isConfirmVisible()) return;
-  if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeConfirm(false); }
+  if (e.key === 'Escape') { e.stopImmediatePropagation(); closeConfirm(false); }
   if (e.key === 'Enter')  { e.preventDefault(); e.stopImmediatePropagation(); closeConfirm(true); }
   // Block all keys while dialog is open
   e.stopPropagation();
@@ -3077,12 +3343,16 @@ function confirmReset() {
   showConfirm('Reset the puzzle? Your progress will be lost.', resetPuzzle);
 }
 
-function loadCurrentPuzzle() {
-  generatePuzzleForKey(currentDateKey);
-
+function refreshPuzzleLabel() {
   const num = puzzleNumberFromKey(currentDateKey);
   const label = formatDateLabel(currentDateKey);
-  document.getElementById('puzzle-label').textContent = `#${num} · ${label}`;
+  const solvedMark = save.solved[currentDateKey] ? ' ✓' : '';
+  document.getElementById('puzzle-label').textContent = `#${num} · ${label}${solvedMark}`;
+}
+
+function loadCurrentPuzzle() {
+  generatePuzzleForKey(currentDateKey);
+  refreshPuzzleLabel();
 
   const today = todayKey();
   const minDate = offsetDate(today, -MAX_DAYS_BACK);
@@ -3255,7 +3525,9 @@ _titleEl.addEventListener('touchend', () => { _lastDingLetter = -1; }, { passive
 currentDateKey = todayKey();
 initSoundUI();
 
-if (isSongMode) {
+if (IS_PLAYABLE) {
+  bootPlayable();
+} else if (isSongMode) {
   // Song challenge mode
   document.querySelector('.date-nav').style.display = 'none';
   // Hide streak, keep moves
@@ -3275,7 +3547,12 @@ if (isSongMode) {
   buildGrid();
   checkStuck();
 } else {
+  startFromUrl();
+}
 
+// web-only: shared replay URLs, browser history and offline support
+// Load today's puzzle, or the win screen / shared replay encoded in the URL
+function startFromUrl() {
 const _params = new URLSearchParams(location.search);
 const _replayParam = _params.get('r');
 const _puzzleNum   = parseInt(_params.get('p'), 10);
@@ -3379,9 +3656,78 @@ window.addEventListener('popstate', () => {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
+// /web-only
+
+// ── YouTube Playables ────────────────────────────────────────
+
+async function bootPlayable() {
+  // Never navigate away from the single page
+  _titleEl.removeAttribute('href');
+
+  // Draw today's puzzle behind the loading screen, then tell YouTube a frame is up
+  loadCurrentPuzzle();
+  if (YT) YT.game.firstFrameReady();
+
+  if (YT) {
+    _gamePaused = true; // no input (even keyboard) until the save is loaded
+    await loadCloudSave();
+    songModeAudio = save.musicMode;
+    initSoundUI();
+    loadCurrentPuzzle(); // re-render with the saved solved marks and streak
+
+    YT.system.onAudioEnabledChange(setAudioEnabled);
+    YT.system.onPause(pauseGame);
+    YT.system.onResume(resumeGame);
+    sendScore(); // keep the leaderboard in sync with the save
+    _gamePaused = false;
+  }
+
+  document.getElementById('gg-loading').classList.add('done');
+  if (YT) YT.game.gameReady();
+}
+
+function setAudioEnabled(enabled) {
+  soundEnabled = enabled;
+  if (!_audioCtx) return;
+  if (enabled && !_gamePaused) _audioCtx.resume().catch(() => {});
+  else _audioCtx.suspend().catch(() => {});
+}
+
+let _resumeReplayOnResume = false;
+let _resumeAutoplayOnResume = false;
+
+function pauseGame() {
+  if (_gamePaused) return;
+  _gamePaused = true;
+  document.documentElement.classList.add('paused');
+
+  // Stop everything that runs on its own: replay playback, autoplay, hint nudges, audio
+  _resumeReplayOnResume = _replayPlaying;
+  if (_replayPlaying) toggleReplayPlayback();
+  _resumeAutoplayOnResume = !!_autoplayTimer;
+  if (_autoplayTimer) { clearTimeout(_autoplayTimer); _autoplayTimer = null; }
+  if (stuckTimer) { clearTimeout(stuckTimer); stuckTimer = null; }
+  if (_audioCtx) _audioCtx.suspend().catch(() => {});
+
+  persistSave(); // YouTube may evict the game after a pause
+}
+
+function resumeGame() {
+  if (!_gamePaused) return;
+  _gamePaused = false;
+  document.documentElement.classList.remove('paused');
+
+  if (_audioCtx && soundEnabled) _audioCtx.resume().catch(() => {});
+  if (_resumeReplayOnResume && !_replayPlaying) toggleReplayPlayback();
+  if (_resumeAutoplayOnResume) _autoplayTimer = setTimeout(() => startAutoplay(), 500);
+  _resumeReplayOnResume = _resumeAutoplayOnResume = false;
+  checkStuck();
+}
 </script>
 
-<footer class="footer"><span class="song-link" id="song-link" onclick="openSongPicker()">♪ Song Challenges</span> · <a href="about.html">About</a><br>vibe coded with <svg width="14" height="14" viewBox="0 0 24 24" fill="white" style="vertical-align:-2px"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg> by <a href="http://erwann.lovable.app" target="_blank" rel="noopener">Erwann</a></footer>
+<!-- web-only -->
+<footer class="footer"><span class="song-link" id="song-link" onclick="openSongPicker()">♪ Song Challenges</span> · <a href="about.html">About</a><br>Created with <svg width="14" height="14" viewBox="0 0 24 24" fill="white" style="vertical-align:-2px"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg> by <a href="http://erwann.lovable.app" target="_blank" rel="noopener">Erwann</a></footer>
+<!-- /web-only -->
 
 </body>
 </html>
