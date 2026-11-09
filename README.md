@@ -109,4 +109,4 @@ MIT
 
 ---
 
-*Vibe coded with ❤️ by [Erwann](http://erwann.lovable.app)*
+*Created with ❤️ by [Erwann](http://erwann.lovable.app)*
