@@ -46,6 +46,7 @@ Single HTML file. No frameworks, no build step, no dependencies.
 - [Color System](docs/color-system.md) — rainbow hue assignment, glow effects, and visual states
 - [Sound Design](docs/sound-design.md) — how tile frequencies, sound types, and the audio pipeline work
 - [Replay URL Encoding](docs/replay-url-encoding.md) — how puzzle solutions are encoded in shareable URLs
+- [YouTube Playables](docs/youtube-playables.md) — the Playables build, SDK integration and requirement checklist
 
 ## URL Parameters
 
@@ -72,6 +73,9 @@ favicon-16.png       # Favicon 16×16
 favicon-32.png       # Favicon 32×32
 favicon-192.png      # PWA icon 192×192
 apple-touch-icon.png # iOS home screen icon 180×180
+scripts/
+  build-playables.js # Builds the YouTube Playables bundle from index.html
+  ytgame-mock.js     # Local stand-in for the Playables SDK (dev builds)
 docs/
   sound-design.md    # Sound system documentation
 ```
@@ -85,6 +89,13 @@ npx serve .
 ```
 
 > ⚠️ Don't use `file://` URLs — clipboard API, service workers, and some security features require HTTP.
+
+Build the YouTube Playables bundle (`dist/glowgrid-playables.zip`), or a local preview with an SDK mock:
+
+```bash
+make playables
+make playables-dev
+```
 
 Regenerate the OG preview image:
 

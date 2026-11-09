@@ -1,7 +1,7 @@
 PORT ?= 8000
 
 .DEFAULT_GOAL := help
-.PHONY: help serve check og bump-cache
+.PHONY: help serve check og bump-cache playables playables-dev
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-11s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -14,6 +14,17 @@ check: ## Syntax-check inline JS, JSON-LD, sw.js and manifest.json
 
 og: ## Regenerate og-image.png from og-image.html (needs Google Chrome)
 	@./generate-og.sh
+
+playables: ## Build the YouTube Playables bundle (dist/glowgrid-playables.zip)
+	@node scripts/build-playables.js
+	@rm -f dist/glowgrid-playables.zip
+	@cd dist/playables && zip -qr ../glowgrid-playables.zip .
+	@echo "✅ dist/glowgrid-playables.zip"
+
+playables-dev: ## Build the Playables version with a local SDK mock and serve it
+	@node scripts/build-playables.js --mock
+	@echo "Open http://127.0.0.1:$(PORT)/dist/playables-dev/ (console: ytgameMock.pause(), .resume(), .setAudio(false))"
+	@python3 -m http.server $(PORT) --bind 127.0.0.1
 
 bump-cache: ## Bump the service worker cache version (after changing cached assets)
 	@perl -pi -e 's/glowgrid-v(\d+)/"glowgrid-v".($$1+1)/e' sw.js
