@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const { minifyWidget } = require('./minify');
 
-const SITE_URL = 'https://glow-grid.vercel.app';
+const SITE_URL = 'https://glow-grid.erwann.app';
 const WIDGET_HEIGHT = 440;
 
 let widgetHtml = null;
