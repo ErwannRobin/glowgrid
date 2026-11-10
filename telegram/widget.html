@@ -1,0 +1,177 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<!--
+  GlowGrid as a Telegram widget (https://core.telegram.org/bots/widgets).
+  Source file: scripts/build-telegram-widget.js minifies it and checks the
+  limits (32768 bytes raw, 4096 bytes after zlib level 9). The bot sends the
+  same minified output. Keep it small: every byte counts after compression.
+  Runtime notes: QuickJS sandbox, no network, no audio, no blurred
+  box-shadow/filter/opacity on many elements (16 "heavy" elements max).
+-->
+<style>
+* { box-sizing: border-box; margin: 0 }
+html, body { height: 100% }
+body {
+  background: #0a0b16; color: #e8eaf6;
+  font: 600 14px/1.3 system-ui, sans-serif;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  padding: 10px 12px calc(10px + var(--tg-content-safe-area-inset-bottom, 0px));
+  user-select: none; touch-action: manipulation; overflow: hidden; position: relative;
+}
+header, footer { display: flex; justify-content: space-between; align-items: center; width: var(--s) }
+h1 { font-size: 18px; letter-spacing: 1px }
+small { color: #8b90b8; font-size: 13px }
+#g { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: var(--s); height: var(--s) }
+.c { border-radius: 22%; background: #161a2e; box-shadow: inset 0 0 0 1px #2a2f4d }
+.on {
+  background: radial-gradient(circle at 38% 32%, hsl(var(--h), 60%, 80%), hsl(var(--h), 75%, 58%) 55%, hsl(var(--h), 80%, 46%));
+  box-shadow: inset 0 0 0 1px #ffffff90;
+}
+.pv { box-shadow: inset 0 0 0 3px hsl(var(--h), 90%, 72%) }
+button {
+  font: inherit; color: inherit; background: #1d2140; border: 0; border-radius: 10px; padding: 6px 14px;
+}
+#w {
+  position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; background: #0a0b16f2; text-align: center; padding: 16px;
+}
+#w b { font-size: 24px }
+.won #w { display: flex }
+</style>
+</head>
+<body>
+<header><h1 id="t"></h1><small id="n"></small></header>
+<div id="g"></div>
+<footer><small id="m"></small><small id="k"></small><button id="r">↺</button></footer>
+<div id="w"><b>✨ Solved!</b><div id="wm"></div><div id="wk"></div><small id="wn"></small><button id="a">Play again</button></div>
+<script>
+const T = window.TelegramWidget, H = T && T.HapticFeedback, $ = id => document.getElementById(id);
+const FULL = 33554431; // 2^25 - 1: all 25 cells on
+
+// core — must match index.html (checked by scripts/build-telegram-widget.js)
+const N = 5;
+function rng(a) {
+  return () => {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+// Cells flipped by tapping i: ON cells hit their + neighbours, OFF cells their × neighbours
+function aff(s, i) {
+  const x = i % N, y = i / N | 0, r = [i];
+  for (const [u, v] of s >> i & 1 ? [[-1, 0], [1, 0], [0, -1], [0, 1]] : [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    const X = x + u, Y = y + v;
+    if (X >= 0 && X < N && Y >= 0 && Y < N) r.push(Y * N + X);
+  }
+  return r;
+}
+function tap(s, i) {
+  for (const j of aff(s, i)) s ^= 1 << j;
+  return s >>> 0;
+}
+function gen(k) {
+  const [y, m, d] = k.split('-').map(Number), r = rng(y * 1e4 + m * 100 + d);
+  let s = FULL;
+  for (let n = 0; n < 10; n++) s = tap(s, Math.floor(r() * 25));
+  return s;
+}
+// /core
+
+// Day keys: "Y-M-D" (same as the website) and the 8-digit YYYYMMDD the bot uses
+const ymd = D => D.getFullYear() * 1e4 + (D.getMonth() + 1) * 100 + D.getDate();
+const key = D => `${D.getFullYear()}-${D.getMonth() + 1}-${D.getDate()}`;
+let K, Y, S, M, won, C = [], P = [];
+
+function load() {
+  const D = new Date();
+  K = key(D);
+  Y = ymd(D);
+  S = gen(K); M = 0; won = 0;
+  try {
+    const o = JSON.parse(localStorage.gg);
+    if (o.k == K) ({ s: S, m: M, w: won } = o);
+  } catch (e) {}
+  $('n').textContent = '#' + Math.max(1, Math.floor((Date.UTC(D.getFullYear(), D.getMonth(), D.getDate()) - Date.UTC(2025, 0, 1)) / 864e5) + 1);
+  draw();
+}
+
+function save() {
+  try { localStorage.gg = JSON.stringify({ k: K, s: S, m: M, w: won }); } catch (e) {}
+}
+
+// Streak record {s: streak, b: best, l: last solved YYYYMMDD}, written by the bot
+// to the message's chat data; d is the bot's fresher answer after a solve
+function streak(d) {
+  let o = {};
+  try { o = JSON.parse(d || T && T.chatData) || {}; } catch (e) {}
+  const D = new Date(); D.setDate(D.getDate() - 1);
+  const s = o.l == Y || o.l == ymd(D) ? o.s : 0;
+  $('k').textContent = s ? '🔥 ' + s : '';
+  $('wk').textContent = s ? `🔥 ${s}-day streak · best ${o.b}` : '';
+}
+
+function draw() {
+  C.forEach((c, i) => c.classList.toggle('on', !!(S >> i & 1)));
+  $('m').textContent = M + ' moves';
+  $('wm').textContent = `in ${M} moves`;
+  $('wn').textContent = 'New puzzle tomorrow';
+  document.body.classList.toggle('won', !!won);
+  streak();
+}
+
+function preview(i) {
+  P.forEach(j => C[j].classList.remove('pv'));
+  P = i < 0 ? [] : aff(S, i);
+  P.forEach(j => C[j].classList.add('pv'));
+}
+
+function move(i) {
+  if (won) return;
+  const a = aff(S, i);
+  S = tap(S, i); M++;
+  a.forEach(j => C[j].animate([{ transform: 'scale(.86)' }, { transform: 'none' }], 180));
+  H && H.impactOccurred('light');
+  if (S == FULL) {
+    won = 1;
+    H && H.notificationOccurred('success');
+    // Report the solve; the bot updates the streak and answers with the new record
+    if (T && T.viewer) T.request('w' + Y + M).then(a => streak(a.result), () => {});
+  }
+  preview(-1); save(); draw();
+}
+
+function fit() {
+  const r = document.body.getBoundingClientRect();
+  document.body.style.setProperty('--s', Math.max(150, Math.min(r.width - 24, r.height - 96, 380)) + 'px');
+}
+
+$('t').innerHTML = [...'GlowGrid'].map((c, i) => `<span style="color:hsl(${180 + i * 25},80%,65%)">${c}</span>`).join('');
+for (let i = 0; i < 25; i++) {
+  const c = document.createElement('div');
+  c.className = 'c';
+  c.style.setProperty('--h', (180 + i % N * 40 + (i / N | 0) * 50) % 360);
+  c.addEventListener('pointerdown', () => preview(i));
+  c.addEventListener('pointerleave', () => preview(-1));
+  c.addEventListener('click', () => move(i));
+  $('g').append(c);
+  C.push(c);
+}
+$('r').onclick = $('a').onclick = () => {
+  S = gen(K); M = 0; won = 0;
+  save(); draw();
+};
+new ResizeObserver(fit).observe(document.body);
+fit(); load();
+if (T) {
+  T.onEvent('chatDataChanged', () => streak());
+  // A message stays in the chat: switch to the new puzzle when the day changes
+  T.onEvent('activated', () => K != key(new Date()) && load());
+  T.ready();
+}
+</script>
+</body>
+</html>

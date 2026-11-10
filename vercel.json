@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/telegram.js": {
+      "includeFiles": "telegram/widget.html"
+    }
+  }
+}

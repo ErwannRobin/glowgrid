@@ -1,10 +1,10 @@
 PORT ?= 8000
 
 .DEFAULT_GOAL := help
-.PHONY: help serve check og bump-cache playables playables-dev
+.PHONY: help serve check og bump-cache playables playables-dev telegram telegram-preview telegram-test telegram-poll telegram-webhook
 
 help: ## Show available targets
-	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-11s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-17s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 serve: ## Serve the game on http://127.0.0.1:8000 (override with PORT=...)
 	@python3 -m http.server $(PORT) --bind 127.0.0.1
@@ -25,6 +25,22 @@ playables-dev: ## Build the Playables version with a local SDK mock and serve it
 	@node scripts/build-playables.js --mock
 	@echo "Open http://127.0.0.1:$(PORT)/dist/playables-dev/ (console: ytgameMock.pause(), .resume(), .setAudio(false))"
 	@python3 -m http.server $(PORT) --bind 127.0.0.1
+
+telegram: ## Build and check the Telegram widget (dist/telegram/widget.html)
+	@node scripts/build-telegram-widget.js
+
+telegram-preview: telegram ## Serve the Telegram widget with a local TelegramWidget mock
+	@echo "Open http://127.0.0.1:$(PORT)/dist/telegram/preview.html"
+	@python3 -m http.server $(PORT) --bind 127.0.0.1
+
+telegram-test: telegram ## Run the Telegram bot tests
+	@node --test telegram/bot.test.js
+
+telegram-poll: telegram ## Run the Telegram bot locally (needs TELEGRAM_BOT_TOKEN)
+	@node scripts/telegram.js poll
+
+telegram-webhook: ## Point the bot at a deployment: make telegram-webhook URL=https://...
+	@node scripts/telegram.js webhook $(URL)
 
 bump-cache: ## Bump the service worker cache version (after changing cached assets)
 	@perl -pi -e 's/glowgrid-v(\d+)/"glowgrid-v".($$1+1)/e' sw.js

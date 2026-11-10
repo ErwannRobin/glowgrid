@@ -47,6 +47,7 @@ Single HTML file. No frameworks, no build step, no dependencies.
 - [Sound Design](docs/sound-design.md) — how tile frequencies, sound types, and the audio pipeline work
 - [Replay URL Encoding](docs/replay-url-encoding.md) — how puzzle solutions are encoded in shareable URLs
 - [YouTube Playables](docs/youtube-playables.md) — the Playables build, SDK integration and requirement checklist
+- [Telegram Widget](docs/telegram-widget.md) — the 4 KB in-chat version, the bot, and how to deploy it
 
 ## URL Parameters
 
@@ -76,6 +77,16 @@ apple-touch-icon.png # iOS home screen icon 180×180
 scripts/
   build-playables.js # Builds the YouTube Playables bundle from index.html
   ytgame-mock.js     # Local stand-in for the Playables SDK (dev builds)
+  build-telegram-widget.js # Builds and checks the Telegram widget
+  telegram-widget-mock.js  # Local stand-in for window.TelegramWidget
+  telegram.js        # Telegram bot CLI: poll locally, set the webhook
+telegram/
+  widget.html        # GlowGrid as a Telegram widget (≤ 4 KB compressed)
+  bot.js             # Bot logic: sends the widget, keeps streaks
+  store.js           # Streak storage (Upstash Redis or in-memory)
+  minify.js          # Widget minifier shared by the build and the bot
+api/
+  telegram.js        # Vercel webhook for the Telegram bot
 docs/
   sound-design.md    # Sound system documentation
 ```
@@ -95,6 +106,15 @@ Build the YouTube Playables bundle (`dist/glowgrid-playables.zip`), or a local p
 ```bash
 make playables
 make playables-dev
+```
+
+Build the Telegram widget, preview it with a mock, run the bot tests, or run the bot locally (see [docs/telegram-widget.md](docs/telegram-widget.md)):
+
+```bash
+make telegram
+make telegram-preview
+make telegram-test
+TELEGRAM_BOT_TOKEN=... make telegram-poll
 ```
 
 Regenerate the OG preview image:
