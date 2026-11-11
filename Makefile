@@ -39,7 +39,7 @@ telegram-test: telegram ## Run the Telegram bot tests
 telegram-poll: telegram ## Run the Telegram bot locally (needs TELEGRAM_BOT_TOKEN)
 	@node scripts/telegram.js poll
 
-telegram-webhook: ## Point the bot at a deployment: make telegram-webhook URL=https://...
+telegram-webhook: ## Point the bot at TELEGRAM_WEBHOOK_BASE_URL (.env), or URL=https://...
 	@node scripts/telegram.js webhook $(URL)
 
 bump-cache: ## Bump the service worker cache version (after changing cached assets)

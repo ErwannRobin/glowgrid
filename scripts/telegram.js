@@ -3,7 +3,8 @@
 // from a gitignored .env file at the repo root (see .env.example).
 //
 //   node scripts/telegram.js poll                 Run the bot locally (long polling).
-//   node scripts/telegram.js webhook <base-url>   Point the bot at <base-url>/api/telegram.
+//   node scripts/telegram.js webhook [base-url]   Point the bot at <base-url>/api/telegram
+//                                                 (default: TELEGRAM_WEBHOOK_BASE_URL).
 //                                                 The secret is derived from the token, unless
 //                                                 TELEGRAM_WEBHOOK_SECRET is set (then it must
 //                                                 match the deployment's).
@@ -65,7 +66,10 @@ async function webhook(api, base) {
     await api('deleteWebhook', {});
     return console.log('✅ Webhook removed');
   }
-  if (!/^https:\/\//.test(base || '')) fail('usage: node scripts/telegram.js webhook https://your-deployment.example');
+  base = base || process.env.TELEGRAM_WEBHOOK_BASE_URL;
+  if (!/^https:\/\//.test(base || '')) {
+    fail('usage: node scripts/telegram.js webhook https://your-deployment.example (or set TELEGRAM_WEBHOOK_BASE_URL in .env)');
+  }
   const url = base.replace(/\/+$/, '') + '/api/telegram';
   const secret = webhookSecret();
   const from = process.env.TELEGRAM_WEBHOOK_SECRET ? 'TELEGRAM_WEBHOOK_SECRET' : 'derived from the bot token';
@@ -104,7 +108,7 @@ async function main() {
     const [me, hook] = await Promise.all([api('getMe', {}), api('getWebhookInfo', {})]);
     return console.log(`@${me.username}\nwebhook: ${hook.url || '(none)'}${hook.last_error_message ? '\nlast error: ' + hook.last_error_message : ''}`);
   }
-  fail('usage: node scripts/telegram.js poll | webhook <base-url> | webhook --delete | info');
+  fail('usage: node scripts/telegram.js poll | webhook [base-url] | webhook --delete | info');
 }
 
 main().catch(e => fail(e.message));
