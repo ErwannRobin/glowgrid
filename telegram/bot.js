@@ -9,6 +9,8 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { minifyWidget } = require('./minify');
+const { FIRST_DAY, formatYmd, puzzleNumberFromYmd, shiftYmd, utcYmd, ymdFromPuzzleNumber } = require('./dates');
+const { leaderboardText, parseLeaderboardMode, recordSolve } = require('./leaderboard');
 
 const SITE_URL = 'https://glow-grid.erwann.app';
 const WIDGET_HEIGHT = 440;
@@ -19,29 +21,7 @@ function getWidgetHtml() {
   return widgetHtml;
 }
 
-// ── Dates as YYYYMMDD integers ───────────────────────────────
-
-function utcYmd(date) {
-  return date.getUTCFullYear() * 10000 + (date.getUTCMonth() + 1) * 100 + date.getUTCDate();
-}
-
-function shiftYmd(ymd, days) {
-  const y = Math.floor(ymd / 10000), m = Math.floor(ymd / 100) % 100, d = ymd % 100;
-  return utcYmd(new Date(Date.UTC(y, m - 1, d + days)));
-}
-
-const MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
-const formatYmd = ymd => `${ymd % 100} ${MONTHS[Math.floor(ymd / 100) % 100 - 1]} ${Math.floor(ymd / 10000)}`;
-
 // ── Archive ──────────────────────────────────────────────────
-
-// Puzzle numbers, as on the website: #1 is 1 Jan 2025
-const FIRST_DAY = 20250101;
-const ymdFromPuzzleNumber = n => shiftYmd(FIRST_DAY, n - 1);
-const puzzleNumberFromYmd = ymd => {
-  const utc = v => Date.UTC(Math.floor(v / 10000), Math.floor(v / 100) % 100 - 1, v % 100);
-  return Math.round((utc(ymd) - utc(FIRST_DAY)) / 86400000) + 1;
-};
 
 // "/archive" argument: a puzzle number ("497", "#497") or a date ("2026-10-05").
 // Returns YYYYMMDD, or null if invalid or not yet in the archive. Days up to UTC
@@ -147,7 +127,7 @@ function sendArchive(api, chatId, start) {
   });
 }
 
-const HELP = '/play — today\'s puzzle\n/yesterday — yesterday\'s puzzle\n/archive — past puzzles (/archive 497 or /archive 2026-10-05)\n/streak — your streak\n\nThe puzzle message updates itself every day, so you can keep playing in the same one.';
+const HELP = '/play — today\'s puzzle\n/yesterday — yesterday\'s puzzle\n/archive — past puzzles (/archive 497 or /archive 2026-10-05)\n/streak — your streak\n/leaderboard — today\'s best players and current streaks (/leaderboard all for all time)\n\nThe puzzle message updates itself every day, so you can keep playing in the same one.';
 
 async function onMessage(api, store, msg, now) {
   const text = (msg.text || '').trim();
@@ -176,6 +156,14 @@ async function onMessage(api, store, msg, now) {
       text: rec ? `🔥 Current streak: ${alive ? rec.s : 0}\n🏆 Best streak: ${rec.b}` : 'No solves yet. Send /play to start.',
     });
   }
+  if (command === '/leaderboard') {
+    const mode = parseLeaderboardMode(arg);
+    if (!mode) {
+      return api('sendMessage', { chat_id: chatId, text: 'Use /leaderboard for today and current streaks, or /leaderboard all for all time.' });
+    }
+    const rec = await getRecord(store, msg.from.id);
+    return api('sendMessage', { chat_id: chatId, text: await leaderboardText(store, msg.from, rec, mode, now) });
+  }
   return api('sendMessage', { chat_id: chatId, text: HELP });
 }
 
@@ -193,6 +181,11 @@ async function onWidgetQuery(api, store, q, now) {
   const rec = nextRecord(before, solve.ymd);
   const data = JSON.stringify(rec);
   if (!before || rec.l !== before.l) await store.set(storeKey(q.from.id), data);
+  try {
+    await recordSolve(store, q.from, solve, rec, now);
+  } catch (e) {
+    console.error(e.message); // the streak is saved; don't fail the answer over the leaderboard
+  }
   // Answer first (15 s deadline), then persist the record in the message
   await api('answerWidgetQuery', { widget_query_id: q.id, data });
   if (q.chat && q.message_id) {
