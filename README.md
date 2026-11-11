@@ -114,7 +114,7 @@ Build the Telegram widget, preview it with a mock, run the bot tests, or run the
 make telegram
 make telegram-preview
 make telegram-test
-TELEGRAM_BOT_TOKEN=... make telegram-poll
+make telegram-poll   # needs TELEGRAM_BOT_TOKEN in .env (see .env.example)
 ```
 
 Regenerate the OG preview image:

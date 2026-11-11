@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// GlowGrid Telegram bot CLI. Needs TELEGRAM_BOT_TOKEN in the environment.
+// GlowGrid Telegram bot CLI. Needs TELEGRAM_BOT_TOKEN, from the environment or
+// from a gitignored .env file at the repo root (see .env.example).
 //
 //   node scripts/telegram.js poll                 Run the bot locally (long polling).
 //   node scripts/telegram.js webhook <base-url>   Point the bot at <base-url>/api/telegram.
@@ -7,6 +8,15 @@
 //                                                 TELEGRAM_WEBHOOK_SECRET is set (then it must
 //                                                 match the deployment's).
 //   node scripts/telegram.js info                 Show the bot and its webhook.
+
+const path = require('path');
+
+// .env at the repo root, if any; variables already set in the shell win
+try {
+  process.loadEnvFile(path.join(__dirname, '..', '.env'));
+} catch (e) {
+  if (e.code !== 'ENOENT') throw e;
+}
 
 const { ALLOWED_UPDATES, createApi, handleUpdate, webhookSecret } = require('../telegram/bot');
 const { createStore } = require('../telegram/store');
@@ -85,7 +95,7 @@ async function webhook(api, base) {
 async function main() {
   const [cmd, arg] = process.argv.slice(2);
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (!token) fail('set TELEGRAM_BOT_TOKEN (from @BotFather)');
+  if (!token) fail('set TELEGRAM_BOT_TOKEN (from @BotFather) in .env or in the environment; see .env.example');
   const api = createApi(token);
   if (cmd === 'poll') return poll(api);
   if (cmd === 'webhook') return webhook(api, arg);

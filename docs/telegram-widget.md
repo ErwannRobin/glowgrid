@@ -12,13 +12,13 @@ The widget is a small rewrite of the game, not a build of `index.html`: widgets 
 | `+` / `×` toggle rules, rainbow cells, move counter | Hints and solver |
 | Long-press preview of the cells a tap flips | Replay, heatmap, video export, share links |
 | Telegram haptics on taps and on a win | Song mode, settings |
-| Progress saved per message (`localStorage`) | PWA / offline (not needed) |
+| Progress saved per message and per day (`localStorage`) | PWA / offline (not needed) |
 | Streak and best streak, kept by the bot | |
 | Past puzzles: `/yesterday`, `/archive` (browse with ‹ ›) | |
 
 The widget plays the current day's puzzle (player's local date, like the website) and switches to the new puzzle when the day changes, so a single message serves every day.
 
-`/yesterday` and `/archive` send the same widget in **archive mode**: it opens on a past day and the player browses every puzzle from #1 (1 Jan 2025, numbered like the website) to yesterday with ‹ ›. Archive solves are marked ✓ in that message but don't count for the streak, as on the website.
+`/yesterday` and `/archive` send the same widget in **archive mode**: it opens on a past day and the player browses every puzzle from #1 (1 Jan 2025, numbered like the website) to yesterday with ‹ ›. Each day's game is kept, so the player can switch days and come back to an unfinished one (the 60 most recently played days fit in the message's 4 KB of `localStorage`). Archive solves are marked ✓ in that message but don't count for the streak, as on the website.
 
 ## Files
 
@@ -82,10 +82,11 @@ The bot trusts the client's "solved" claim, like the website trusts its own `loc
 1. **Create the bot** with [@BotFather](https://t.me/BotFather) and copy the token.
 2. **Storage.** Add an Upstash Redis database to the Vercel project (Marketplace). It sets `KV_REST_API_URL`/`KV_REST_API_TOKEN` (or set `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`). Without it, streaks live in memory and are lost whenever the function cold-starts.
 3. **Vercel env var:** `TELEGRAM_BOT_TOKEN`. The webhook refuses requests without the right `X-Telegram-Bot-Api-Secret-Token` header. That secret is derived from the token (HMAC-SHA256), so there is nothing else to set or keep. To use your own secret instead, set `TELEGRAM_WEBHOOK_SECRET` on Vercel and pass the same value to the command below.
-4. **Deploy**, then point Telegram at it:
+4. **Local token.** The CLI reads `TELEGRAM_BOT_TOKEN` from a gitignored `.env` at the repo root, so you set it once: `cp .env.example .env` and paste the token. A variable set in the shell takes precedence.
+5. **Deploy**, then point Telegram at it:
 
    ```sh
-   TELEGRAM_BOT_TOKEN=... make telegram-webhook URL=https://glow-grid.erwann.app
+   make telegram-webhook URL=https://glow-grid.erwann.app
    ```
 
    This calls `setWebhook` with `allowed_updates` including `widget_query`, and registers the `/play`, `/yesterday`, `/archive` and `/streak` commands (run it again after adding a command). Check it with `node scripts/telegram.js info`. Before switching, it sends an empty update to the deployment and stops without changing anything if the deployment rejects the secret (for example, a `TELEGRAM_WEBHOOK_SECRET` is still set on Vercel).
@@ -95,7 +96,7 @@ The bot trusts the client's "solved" claim, like the website trusts its own `loc
 ### Local bot
 
 ```sh
-TELEGRAM_BOT_TOKEN=... make telegram-poll
+make telegram-poll   # token from .env
 ```
 
 Runs the bot with long polling and an in-memory store. Telegram refuses long polling while a webhook is set: remove it with `node scripts/telegram.js webhook --delete` (and set it again afterwards).
