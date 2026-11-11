@@ -248,3 +248,50 @@ test('/leaderboard with an unknown option explains the two', async () => {
   const text = await leaderboard(createMemoryStore(), 1, '/leaderboard week', new Date());
   assert.match(text, /\/leaderboard_all/);
 });
+
+// ── Stats ────────────────────────────────────────────────────
+
+const { parseStart } = require('./stats');
+
+async function start(store, id, data, now) {
+  const { api, calls } = fakeApi();
+  await handleUpdate({ widget_query: { id: 'q', from: { id }, data } }, { api, store, now });
+  assert.deepEqual(calls, [{ method: 'answerWidgetQuery', params: { widget_query_id: 'q' } }]);
+}
+
+test('parseStart accepts "s" + YYYYMMDD only', () => {
+  assert.equal(parseStart('s20261111'), 20261111);
+  for (const d of ['s2026111', 's2026111112', 'w20261111', undefined]) assert.equal(parseStart(d), null);
+});
+
+test('/stats counts players, games and wins today and all time', async () => {
+  const store = createMemoryStore();
+  const at = (d, h = 12) => new Date(Date.UTC(2026, 10, d, h));
+  // 10 Nov: Ann plays once and wins
+  await start(store, 1, 's20261110', at(10));
+  await solve(store, 1, 'Ann', 'w2026111012', at(10));
+  // 11 Nov: Ann wins, then resets and gives up; Bob gives up; Cy solves from an
+  // old widget (no start): a player, but not a game or a win
+  await start(store, 1, 's20261111', at(11));
+  await solve(store, 1, 'Ann', 'w2026111110', at(11));
+  await start(store, 1, 's20261111', at(11));
+  await start(store, 2, 's20261111', at(11));
+  await solve(store, 3, 'Cy', 'w2026111111', at(11));
+  await start(store, 2, 's20300101', at(11)); // implausible day: ignored
+
+  const text = await leaderboard(store, 1, '/stats', at(11, 15));
+  const [title, today, all] = text.split('\n\n');
+  assert.match(title, /puzzle #680 \(11 Nov 2026\)/);
+  assert.equal(today, 'Today\n👥 Players: 3\n🎮 Games: 3\n✅ Win rate: 33% (1 of 3)');
+  assert.equal(all, 'All time (since 10 Nov 2026)\n👥 Players: 3\n🎮 Games: 4\n✅ Win rate: 50% (2 of 4)');
+});
+
+test('/stats before any game', async () => {
+  const text = await leaderboard(createMemoryStore(), 1, '/stats', new Date(Date.UTC(2026, 10, 11)));
+  assert.match(text, /Today\n👥 Players: 0\n🎮 Games: 0\n✅ Win rate: —/);
+  assert.match(text, /\nAll time\n/);
+});
+
+test('the widget reports a game start on the first move of today\'s puzzle', () => {
+  assert.ok(getWidgetHtml().includes("if (M == 1 && !A && T && T.viewer) T.request('s' + Y)"));
+});
