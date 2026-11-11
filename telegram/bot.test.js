@@ -158,3 +158,90 @@ test('"y" widget query (win screen button) sends yesterday\'s puzzle', async () 
   assert.equal(calls[1].params.chat_data, JSON.stringify({ t: Math.floor(now / 1000) }));
   assert.ok(!calls[1].params.allow_queries);
 });
+
+// ── Leaderboard ──────────────────────────────────────────────
+
+const { parseLeaderboardMode } = require('./leaderboard');
+
+async function solve(store, id, first_name, data, now) {
+  await handleUpdate({ widget_query: { id: 'q', from: { id, first_name }, data } }, { api: fakeApi().api, store, now });
+}
+
+const NAMES = { 1: 'Ann', 2: 'Bob' };
+async function leaderboard(store, id, text, now) {
+  const { api, calls } = fakeApi();
+  await handleUpdate({ message: { text, chat: { id }, from: { id, first_name: NAMES[id] || 'P' + id } } }, { api, store, now });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].method, 'sendMessage');
+  return calls[0].params.text;
+}
+
+test('parseLeaderboardMode: current by default, "all" for all time', () => {
+  for (const a of [undefined, '', 'today', 'current', 'actual', 'NOW']) assert.equal(parseLeaderboardMode(a), 'current');
+  for (const a of ['all', 'all-time', 'alltime', 'ever']) assert.equal(parseLeaderboardMode(a), 'all');
+  assert.equal(parseLeaderboardMode('foo'), null);
+});
+
+test('/leaderboard ranks today by fewest moves (ties: first solve) and shows the asker', async () => {
+  const store = createMemoryStore();
+  const t = h => new Date(Date.UTC(2026, 10, 11, h));
+  await solve(store, 1, 'Ann', 'w2026111120', t(8));
+  await solve(store, 1, 'Ann', 'w2026111112', t(9));  // better replay counts
+  await solve(store, 1, 'Ann', 'w2026111118', t(10)); // worse replay doesn't
+  await solve(store, 2, 'Bob', 'w2026111112', t(11)); // same moves, later
+  await solve(store, 3, 'Cy', 'w2026111109', t(12));
+  for (let i = 10; i < 17; i++) await solve(store, i, 'X' + i, 'w2026111130', t(13));
+  await solve(store, 20, 'Zed', 'w2026111140', t(14));
+
+  const text = await leaderboard(store, 20, '/leaderboard', t(15));
+  assert.match(text, /puzzle #680 \(11 Nov 2026\)/);
+  const moves = text.split('\n\n')[1];
+  assert.match(moves, /🥇 Cy — 9 moves\n🥈 Ann — 12 moves\n🥉 Bob — 12 moves\n4\. X1\d — 30 moves/);
+  assert.match(moves, /You: #11 of 11 — 40 moves/);
+
+  const none = await leaderboard(store, 99, '/leaderboard', t(15));
+  assert.match(none.split('\n\n')[1], /You: not solved yet/);
+});
+
+test('/leaderboard current streaks drop broken ones; all-time keeps best streaks', async () => {
+  const store = createMemoryStore();
+  const day = d => new Date(Date.UTC(2026, 10, d, 12));
+  for (let d = 1; d <= 5; d++) await solve(store, 1, 'Ann', `w202611${String(d).padStart(2, '0')}10`, day(d)); // 5, then stops
+  for (let d = 4; d <= 11; d++) await solve(store, 2, 'Bob', `w202611${String(d).padStart(2, '0')}10`, day(d)); // 8, alive
+
+  const cur = await leaderboard(store, 1, '/leaderboard', day(11));
+  const streaks = cur.split('\n\n')[2];
+  assert.match(streaks, /🥇 Bob — 🔥 8 days/);
+  assert.doesNotMatch(streaks, /Ann/);
+  assert.match(streaks, /You: no streak yet/);
+
+  const all = await leaderboard(store, 1, '/leaderboard all', day(11));
+  const best = all.split('\n\n')[2];
+  assert.match(best, /🥇 Bob — 🔥 8 days\n🥈 Ann \(you\) — 🔥 5 days/);
+});
+
+test('/leaderboard all counts a day win once, after the day is final', async () => {
+  const store = createMemoryStore();
+  const at = (d, h = 12) => new Date(Date.UTC(2026, 10, d, h));
+  await solve(store, 1, 'Ann', 'w2026110912', at(9));
+  await solve(store, 2, 'Bob', 'w2026110910', at(9, 13));
+  await solve(store, 1, 'Ann', 'w2026111010', at(10));
+
+  let all = await leaderboard(store, 1, '/leaderboard all', at(10));
+  assert.match(all.split('\n\n')[1], /No days won yet/); // the 9th isn't final on the 10th
+
+  all = await leaderboard(store, 1, '/leaderboard all', at(11));
+  assert.match(all.split('\n\n')[1], /🥇 Bob — 1 day\nYou: no days won yet/);
+  all = await leaderboard(store, 2, '/leaderboard all', at(11)); // asked again: not counted twice
+  assert.match(all.split('\n\n')[1], /🥇 Bob \(you\) — 1 day$/);
+
+  all = await leaderboard(store, 2, '/leaderboard all', at(12));
+  const wins = all.split('\n\n')[1];
+  assert.match(wins, /🥇 Ann — 1 day/); // tied: same place
+  assert.match(wins, /🥇 Bob \(you\) — 1 day/);
+});
+
+test('/leaderboard with an unknown option explains the two', async () => {
+  const text = await leaderboard(createMemoryStore(), 1, '/leaderboard week', new Date());
+  assert.match(text, /\/leaderboard all/);
+});

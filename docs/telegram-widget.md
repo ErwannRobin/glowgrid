@@ -15,6 +15,7 @@ The widget is a small rewrite of the game, not a build of `index.html`: widgets 
 | Progress saved per message and per day (`localStorage`) | PWA / offline (not needed) |
 | Streak and best streak, kept by the bot | |
 | Past puzzles: `/yesterday`, `/archive` (browse with ‹ ›) | |
+| Leaderboards: `/leaderboard` (today), `/leaderboard all` (all time) | |
 
 The widget plays the current day's puzzle (player's local date, like the website) and switches to the new puzzle when the day changes, so a single message serves every day.
 
@@ -27,7 +28,9 @@ The widget plays the current day's puzzle (player's local date, like the website
 | `telegram/widget.html` | Widget source: one HTML document with inline CSS and JS |
 | `telegram/minify.js` | Dependency-free minifier, used by both the build and the bot |
 | `telegram/bot.js` | Bot logic: commands, `sendWidget`, solve queries, streaks |
-| `telegram/store.js` | Streak storage: Upstash Redis REST, or in-memory |
+| `telegram/leaderboard.js` | `/leaderboard`: daily moves, streak and win rankings |
+| `telegram/dates.js` | YYYYMMDD dates and puzzle numbers |
+| `telegram/store.js` | Storage (strings, sorted sets, hashes): Upstash Redis REST, or in-memory |
 | `api/telegram.js` | Vercel webhook (`POST /api/telegram`) |
 | `scripts/build-telegram-widget.js` | Builds `dist/telegram/` and checks the limits |
 | `scripts/telegram.js` | CLI: `poll` (local bot), `webhook <url>`, `info` |
@@ -69,6 +72,8 @@ Widgets run in a QuickJS sandbox, not a browser. From the [limits](https://core.
 | Bot | Validates the date (UTC today ± 1 day, for time zones), updates the record, `answerWidgetQuery` with the record, then `editMessageWidgetData` to store it in the message's `chat_data` |
 | Widget | Shows the streak from the answer, and from `chat_data` (`chatDataChanged` event) on later views |
 | `/streak` | Text reply with current and best streak |
+| `/leaderboard` | Text reply: top 5 by fewest moves on today's puzzle, top 5 current streaks, and the asker's place |
+| `/leaderboard all` | Text reply: top 5 by days won, top 5 best streaks ever, and the asker's place |
 | "‹ Yesterday's puzzle" (today's win screen) | Widget calls `TelegramWidget.request("y")`; the bot answers and sends a `/yesterday` message |
 | `/yesterday`, `/archive` | `sendWidget` without queries; `chat_data` is `{"t": <message unix time>}`, which the widget turns into yesterday in the player's time zone |
 | `/archive 497`, `/archive 2026-10-05` | Same, starting on that day: `chat_data` is `{"d": 20260512}`. Accepts #1 / 2025-01-01 up to UTC today; the widget stops at the player's yesterday |
@@ -76,6 +81,17 @@ Widgets run in a QuickJS sandbox, not a browser. From the [limits](https://core.
 The widget tells the modes apart by `chat_data`: `d` or `t` means archive, anything else is a streak record.
 
 Streak record (JSON, stored under `gg:tg:<user id>` and in `chat_data`): `{"s": current streak, "b": best streak, "l": last solved day as YYYYMMDD}`. Solving the same day again doesn't change it; missing a day resets `s` to 1.
+
+### Leaderboards
+
+Each solve also updates sorted sets in the store (see the top of `telegram/leaderboard.js`):
+
+- **Today**: `gg:tg:day:<YYYYMMDD>` keeps each player's fewest moves for that day (a better replay replaces it, a worse one doesn't). Ties go to the first to solve. "Today" is the asker's last solved day if it is UTC today ± 1 (their time zone), else UTC today.
+- **Current streaks**: only streaks still alive (last solve at most 2 UTC days ago, like `/streak`). Broken ones are removed when someone asks for the leaderboard.
+- **Days won** (all time): the player with the fewest moves of the day (ties: first to solve) wins it. A day is counted 2 days later, once no time zone can still play it, when someone next asks for `/leaderboard`; at most the 14 last days are counted, so days are lost if nobody asks for 2 weeks.
+- **Longest streaks** (all time): each player's best streak.
+
+Names are the player's Telegram first name and last-name initial, saved on each solve and `/leaderboard`. Players who solved before the leaderboard existed appear in the streak boards after their next solve or `/leaderboard`.
 
 The bot trusts the client's "solved" claim, like the website trusts its own `localStorage`. Requests are rate-limited by Telegram (5 per 5 s per user).
 
@@ -91,7 +107,7 @@ The bot trusts the client's "solved" claim, like the website trusts its own `loc
    make telegram-webhook URL=https://glow-grid.erwann.app
    ```
 
-   This calls `setWebhook` with `allowed_updates` including `widget_query`, and registers the `/play`, `/yesterday`, `/archive` and `/streak` commands (run it again after adding a command). Check it with `node scripts/telegram.js info`. Before switching, it sends an empty update to the deployment and stops without changing anything if the deployment rejects the secret (for example, a `TELEGRAM_WEBHOOK_SECRET` is still set on Vercel).
+   This calls `setWebhook` with `allowed_updates` including `widget_query`, and registers the `/play`, `/yesterday`, `/archive`, `/streak` and `/leaderboard` commands (run it again after adding a command). Check it with `node scripts/telegram.js info`. Before switching, it sends an empty update to the deployment and stops without changing anything if the deployment rejects the secret (for example, a `TELEGRAM_WEBHOOK_SECRET` is still set on Vercel).
 
 `vercel.json` adds `telegram/widget.html` to the function bundle; the bot minifies it on cold start.
 
