@@ -57,7 +57,7 @@ Widgets run in a QuickJS sandbox, not a browser. From the [limits](https://core.
 - **No network, no audio**, no `navigator.vibrate` → haptics go through `TelegramWidget.HapticFeedback`.
 - **At most 16 "heavy" elements** (blurred `box-shadow`, `filter`, `backdrop-filter`, `opacity < 1`). The website's glow uses blurred shadows on 25 cells, which would stop the widget, so cells use gradients and unblurred inset borders only, and the win overlay uses a translucent background color instead of `opacity`.
 - **No `vh` units, no scrolling.** The grid is sized from the body's box with a `ResizeObserver`.
-- **The box size in CSS pixels differs by client.** Telegram for iPhone gives a box several times larger than macOS for the same message, so fixed pixel sizes looked tiny there. `fit()` scales everything from the body's box (designed for 360 × 440): it sets the body's font size and all other sizes are in `em`.
+- **Don't trust the body's height.** Telegram for iPhone doesn't give `html`/`body` a height, so the body is only as tall as its content and sizes measured from it hit their minimum (tiny grid at the top of the message). `fit()` measures the window instead (`innerWidth`/`innerHeight`, `documentElement`), falls back to 360 × 440 (the height the bot sends) when that looks wrong, sets the body's height and font size from it, and all other sizes are in `em`. Not confirmed on a device which of these values iOS reports.
 - **`TelegramWidget.request()` only from a tap handler.** The solve is reported from the click that completes the puzzle.
 
 ## Bot protocol
