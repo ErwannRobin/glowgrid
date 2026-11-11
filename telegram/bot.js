@@ -5,6 +5,7 @@
 // the Vercel webhook (api/telegram.js) or the local long-polling loop
 // (scripts/telegram.js poll). See docs/telegram-widget.md.
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { minifyWidget } = require('./minify');
@@ -96,6 +97,15 @@ function createApi(token, fetchImpl = fetch) {
     if (!json.ok) throw new Error(`${method} failed: ${json.description}`);
     return json.result;
   };
+}
+
+// Webhook secret (X-Telegram-Bot-Api-Secret-Token): TELEGRAM_WEBHOOK_SECRET if
+// set, else derived from the bot token, so the webhook and the CLI only need the
+// token. HMAC-SHA256 in hex: allowed by Telegram, and it doesn't reveal the token.
+function webhookSecret(env = process.env) {
+  if (env.TELEGRAM_WEBHOOK_SECRET) return env.TELEGRAM_WEBHOOK_SECRET;
+  if (!env.TELEGRAM_BOT_TOKEN) return null;
+  return crypto.createHmac('sha256', env.TELEGRAM_BOT_TOKEN).update('glowgrid-telegram-webhook').digest('hex');
 }
 
 // ── Handlers ─────────────────────────────────────────────────
@@ -199,6 +209,6 @@ async function handleUpdate(update, { api, store, now = new Date() }) {
 const ALLOWED_UPDATES = ['message', 'widget_query', 'shared_widget_query'];
 
 module.exports = {
-  ALLOWED_UPDATES, createApi, getWidgetHtml, handleUpdate,
+  ALLOWED_UPDATES, createApi, getWidgetHtml, handleUpdate, webhookSecret,
   isPlausibleDay, nextRecord, parseArchiveDay, parseSolve, puzzleNumberFromYmd, shiftYmd, utcYmd,
 };
