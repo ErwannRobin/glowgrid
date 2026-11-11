@@ -2,7 +2,7 @@
 
 A daily puzzle game inspired by [Lights Out](https://en.wikipedia.org/wiki/Lights_Out_(game)). Light up all the cells in the grid — each tap toggles a cell and its neighbors. Every day brings a unique puzzle with a guaranteed solution.
 
-🎮 **[Play now](https://glow-grid.vercel.app)**
+🎮 **[Play now](https://glow-grid.erwann.app)**
 
 <img src="og-image.png" alt="GlowGrid preview" width="600">
 

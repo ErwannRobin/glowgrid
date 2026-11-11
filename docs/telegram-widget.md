@@ -78,7 +78,7 @@ The bot trusts the client's "solved" claim, like the website trusts its own `loc
 4. **Deploy**, then point Telegram at it:
 
    ```sh
-   TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... make telegram-webhook URL=https://glow-grid.vercel.app
+   TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... make telegram-webhook URL=https://glow-grid.erwann.app
    ```
 
    This calls `setWebhook` with `allowed_updates` including `widget_query`, and registers the `/play` and `/streak` commands. Check it with `node scripts/telegram.js info`.
