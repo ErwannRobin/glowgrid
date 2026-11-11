@@ -199,6 +199,8 @@ test('/leaderboard ranks today by fewest moves (ties: first solve) and shows the
   assert.match(moves, /🥇 Cy — 9 moves\n🥈 Ann — 12 moves\n🥉 Bob — 12 moves\n4\. X1\d — 30 moves/);
   assert.match(moves, /You: #11 of 11 — 40 moves/);
 
+  assert.match(text, /All-time records: \/leaderboard_all$/);
+
   const none = await leaderboard(store, 99, '/leaderboard', t(15));
   assert.match(none.split('\n\n')[1], /You: not solved yet/);
 });
@@ -216,6 +218,7 @@ test('/leaderboard current streaks drop broken ones; all-time keeps best streaks
   assert.match(streaks, /You: no streak yet/);
 
   const all = await leaderboard(store, 1, '/leaderboard all', day(11));
+  assert.equal(await leaderboard(store, 1, '/leaderboard_all', day(11)), all);
   const best = all.split('\n\n')[2];
   assert.match(best, /🥇 Bob — 🔥 8 days\n🥈 Ann \(you\) — 🔥 5 days/);
 });
@@ -243,5 +246,5 @@ test('/leaderboard all counts a day win once, after the day is final', async () 
 
 test('/leaderboard with an unknown option explains the two', async () => {
   const text = await leaderboard(createMemoryStore(), 1, '/leaderboard week', new Date());
-  assert.match(text, /\/leaderboard all/);
+  assert.match(text, /\/leaderboard_all/);
 });

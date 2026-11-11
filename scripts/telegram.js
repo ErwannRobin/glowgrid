@@ -27,7 +27,7 @@ const COMMANDS = [
   { command: 'yesterday', description: 'Yesterday\'s puzzle' },
   { command: 'archive', description: 'Past puzzles' },
   { command: 'streak', description: 'Your streak' },
-  { command: 'leaderboard', description: 'Best players: today, or /leaderboard all' },
+  { command: 'leaderboard', description: 'Best players: today, or /leaderboard_all' },
 ];
 
 function fail(msg) {

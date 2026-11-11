@@ -127,7 +127,7 @@ function sendArchive(api, chatId, start) {
   });
 }
 
-const HELP = '/play — today\'s puzzle\n/yesterday — yesterday\'s puzzle\n/archive — past puzzles (/archive 497 or /archive 2026-10-05)\n/streak — your streak\n/leaderboard — today\'s best players and current streaks (/leaderboard all for all time)\n\nThe puzzle message updates itself every day, so you can keep playing in the same one.';
+const HELP = '/play — today\'s puzzle\n/yesterday — yesterday\'s puzzle\n/archive — past puzzles (/archive 497 or /archive 2026-10-05)\n/streak — your streak\n/leaderboard — today\'s best players and current streaks (/leaderboard_all for all time)\n\nThe puzzle message updates itself every day, so you can keep playing in the same one.';
 
 async function onMessage(api, store, msg, now) {
   const text = (msg.text || '').trim();
@@ -156,10 +156,10 @@ async function onMessage(api, store, msg, now) {
       text: rec ? `🔥 Current streak: ${alive ? rec.s : 0}\n🏆 Best streak: ${rec.b}` : 'No solves yet. Send /play to start.',
     });
   }
-  if (command === '/leaderboard') {
-    const mode = parseLeaderboardMode(arg);
+  if (command === '/leaderboard' || command === '/leaderboard_all') {
+    const mode = command === '/leaderboard_all' ? 'all' : parseLeaderboardMode(arg);
     if (!mode) {
-      return api('sendMessage', { chat_id: chatId, text: 'Use /leaderboard for today and current streaks, or /leaderboard all for all time.' });
+      return api('sendMessage', { chat_id: chatId, text: 'Use /leaderboard for today and current streaks, or /leaderboard_all for all time.' });
     }
     const rec = await getRecord(store, msg.from.id);
     return api('sendMessage', { chat_id: chatId, text: await leaderboardText(store, msg.from, rec, mode, now) });

@@ -15,7 +15,7 @@ The widget is a small rewrite of the game, not a build of `index.html`: widgets 
 | Progress saved per message and per day (`localStorage`) | PWA / offline (not needed) |
 | Streak and best streak, kept by the bot | |
 | Past puzzles: `/yesterday`, `/archive` (browse with ‹ ›) | |
-| Leaderboards: `/leaderboard` (today), `/leaderboard all` (all time) | |
+| Leaderboards: `/leaderboard` (today), `/leaderboard_all` or `/leaderboard all` (all time) | |
 
 The widget plays the current day's puzzle (player's local date, like the website) and switches to the new puzzle when the day changes, so a single message serves every day.
 
@@ -72,8 +72,8 @@ Widgets run in a QuickJS sandbox, not a browser. From the [limits](https://core.
 | Bot | Validates the date (UTC today ± 1 day, for time zones), updates the record, `answerWidgetQuery` with the record, then `editMessageWidgetData` to store it in the message's `chat_data` |
 | Widget | Shows the streak from the answer, and from `chat_data` (`chatDataChanged` event) on later views |
 | `/streak` | Text reply with current and best streak |
-| `/leaderboard` | Text reply: top 5 by fewest moves on today's puzzle, top 5 current streaks, and the asker's place |
-| `/leaderboard all` | Text reply: top 5 by days won, top 5 best streaks ever, and the asker's place |
+| `/leaderboard` | Text reply: top 5 by fewest moves on today's puzzle, top 5 current streaks, and the asker's place; ends with a tappable `/leaderboard_all` |
+| `/leaderboard_all`, `/leaderboard all` | Text reply: top 5 by days won, top 5 best streaks ever, and the asker's place |
 | "‹ Yesterday's puzzle" (today's win screen) | Widget calls `TelegramWidget.request("y")`; the bot answers and sends a `/yesterday` message |
 | `/yesterday`, `/archive` | `sendWidget` without queries; `chat_data` is `{"t": <message unix time>}`, which the widget turns into yesterday in the player's time zone |
 | `/archive 497`, `/archive 2026-10-05` | Same, starting on that day: `chat_data` is `{"d": 20260512}`. Accepts #1 / 2025-01-01 up to UTC today; the widget stops at the player's yesterday |
