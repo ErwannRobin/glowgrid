@@ -50,5 +50,13 @@
   window.tgMock = {
     setChatData(s) { try { localStorage.setItem(KEY, s); } catch (e) {} fire('chatDataChanged'); },
     reset() { try { localStorage.clear(); } catch (e) {} location.reload(); },
+    // Archive mode, as sent by /archive or /yesterday: tgMock.archive(20261005) or tgMock.archive()
+    archive(ymd) {
+      try {
+        localStorage.clear();
+        localStorage.setItem(KEY, JSON.stringify(ymd ? { d: ymd } : { t: Math.floor(Date.now() / 1000) }));
+      } catch (e) {}
+      location.reload();
+    },
   };
 })();
