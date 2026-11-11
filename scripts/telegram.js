@@ -28,6 +28,7 @@ const COMMANDS = [
   { command: 'archive', description: 'Past puzzles' },
   { command: 'streak', description: 'Your streak' },
   { command: 'leaderboard', description: 'Best players: today, or /leaderboard_all' },
+  { command: 'stats', description: 'Players, games and win rate' },
 ];
 
 function fail(msg) {

@@ -188,4 +188,4 @@ async function leaderboardText(store, from, rec, mode, now) {
   return mode === 'all' ? allTimeLeaderboard(store, from.id) : currentLeaderboard(store, from.id, rec, now);
 }
 
-module.exports = { K, displayName, leaderboardText, parseLeaderboardMode, recordSolve };
+module.exports = { K, currentDay, displayName, leaderboardText, parseLeaderboardMode, recordSolve };
