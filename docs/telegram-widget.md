@@ -100,12 +100,14 @@ The bot trusts the client's "solved" claim, like the website trusts its own `loc
 1. **Create the bot** with [@BotFather](https://t.me/BotFather) and copy the token.
 2. **Storage.** Add an Upstash Redis database to the Vercel project (Marketplace). It sets `KV_REST_API_URL`/`KV_REST_API_TOKEN` (or set `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`). Without it, streaks live in memory and are lost whenever the function cold-starts.
 3. **Vercel env var:** `TELEGRAM_BOT_TOKEN`. The webhook refuses requests without the right `X-Telegram-Bot-Api-Secret-Token` header. That secret is derived from the token (HMAC-SHA256), so there is nothing else to set or keep. To use your own secret instead, set `TELEGRAM_WEBHOOK_SECRET` on Vercel and pass the same value to the command below.
-4. **Local token.** The CLI reads `TELEGRAM_BOT_TOKEN` from a gitignored `.env` at the repo root, so you set it once: `cp .env.example .env` and paste the token. A variable set in the shell takes precedence.
+4. **Local config.** The CLI reads `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_BASE_URL` from a gitignored `.env` at the repo root, so you set them once: `cp .env.example .env` and paste the token. A variable set in the shell takes precedence.
 5. **Deploy**, then point Telegram at it:
 
    ```sh
-   make telegram-webhook URL=https://glow-grid.erwann.app
+   make telegram-webhook
    ```
+
+   It uses `TELEGRAM_WEBHOOK_BASE_URL`; pass `URL=https://...` to target another deployment once.
 
    This calls `setWebhook` with `allowed_updates` including `widget_query`, and registers the `/play`, `/yesterday`, `/archive`, `/streak` and `/leaderboard` commands (run it again after adding a command). Check it with `node scripts/telegram.js info`. Before switching, it sends an empty update to the deployment and stops without changing anything if the deployment rejects the secret (for example, a `TELEGRAM_WEBHOOK_SECRET` is still set on Vercel).
 
