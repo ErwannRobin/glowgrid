@@ -2,11 +2,13 @@
 // GlowGrid Telegram bot CLI. Needs TELEGRAM_BOT_TOKEN in the environment.
 //
 //   node scripts/telegram.js poll                 Run the bot locally (long polling).
-//   node scripts/telegram.js webhook <base-url>   Point the bot at <base-url>/api/telegram
-//                                                 (needs TELEGRAM_WEBHOOK_SECRET too).
+//   node scripts/telegram.js webhook <base-url>   Point the bot at <base-url>/api/telegram.
+//                                                 The secret is derived from the token, unless
+//                                                 TELEGRAM_WEBHOOK_SECRET is set (then it must
+//                                                 match the deployment's).
 //   node scripts/telegram.js info                 Show the bot and its webhook.
 
-const { ALLOWED_UPDATES, createApi, handleUpdate } = require('../telegram/bot');
+const { ALLOWED_UPDATES, createApi, handleUpdate, webhookSecret } = require('../telegram/bot');
 const { createStore } = require('../telegram/store');
 
 const COMMANDS = [
@@ -52,13 +54,32 @@ async function webhook(api, base) {
     await api('deleteWebhook', {});
     return console.log('✅ Webhook removed');
   }
-  const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (!secret) fail('set TELEGRAM_WEBHOOK_SECRET (same value as on Vercel), e.g. `openssl rand -hex 32`');
   if (!/^https:\/\//.test(base || '')) fail('usage: node scripts/telegram.js webhook https://your-deployment.example');
   const url = base.replace(/\/+$/, '') + '/api/telegram';
+  const secret = webhookSecret();
+  const from = process.env.TELEGRAM_WEBHOOK_SECRET ? 'TELEGRAM_WEBHOOK_SECRET' : 'derived from the bot token';
+  // Check that the deployment accepts this secret before switching Telegram to it:
+  // an empty update is a no-op for the bot.
+  let status;
+  try {
+    status = (await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-telegram-bot-api-secret-token': secret },
+      body: '{"update_id":0}',
+      redirect: 'manual',
+    })).status;
+  } catch (e) {
+    fail(`can't reach ${url}: ${e.message}`);
+  }
+  if (status === 401) {
+    fail(`${url} rejected the secret (${from}). The deployment has a different TELEGRAM_WEBHOOK_SECRET: ` +
+      'pass the same value, or remove it from the Vercel env vars and redeploy. The webhook was not changed.');
+  }
+  if (status === 503) fail(`${url} has no TELEGRAM_BOT_TOKEN. The webhook was not changed.`);
+  if (status !== 200) fail(`${url} answered ${status} (redirect or not deployed?). The webhook was not changed.`);
   await api('setWebhook', { url, secret_token: secret, allowed_updates: ALLOWED_UPDATES });
   await api('setMyCommands', { commands: COMMANDS });
-  console.log(`✅ Webhook set to ${url}`);
+  console.log(`✅ Webhook set to ${url} (secret: ${from})`);
 }
 
 async function main() {

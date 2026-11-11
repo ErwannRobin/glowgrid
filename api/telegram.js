@@ -1,10 +1,11 @@
 'use strict';
 // Vercel serverless webhook for the GlowGrid Telegram bot.
-// Env: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, and optionally Upstash
-// Redis (see telegram/store.js). Register with `make telegram-webhook`.
+// Env: TELEGRAM_BOT_TOKEN, optionally TELEGRAM_WEBHOOK_SECRET (derived from the
+// token when unset, see webhookSecret()) and Upstash Redis (see telegram/store.js).
+// Register with `make telegram-webhook`.
 
 const crypto = require('crypto');
-const { createApi, handleUpdate } = require('../telegram/bot');
+const { createApi, handleUpdate, webhookSecret } = require('../telegram/bot');
 const { createStore } = require('../telegram/store');
 
 const store = createStore();
@@ -16,8 +17,8 @@ function sameSecret(a, b) {
 
 module.exports = async function telegramWebhook(req, res) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (!token || !secret) return res.status(503).send('Bot not configured');
+  if (!token) return res.status(503).send('Bot not configured');
+  const secret = webhookSecret();
   if (req.method !== 'POST') return res.status(405).send('POST only');
   if (!sameSecret(req.headers['x-telegram-bot-api-secret-token'] || '', secret)) {
     return res.status(401).send('Bad secret');

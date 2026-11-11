@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const zlib = require('zlib');
 const {
   getWidgetHtml, handleUpdate, isPlausibleDay, nextRecord, parseArchiveDay, parseSolve,
-  puzzleNumberFromYmd, shiftYmd,
+  puzzleNumberFromYmd, shiftYmd, webhookSecret,
 } = require('./bot');
 const { createMemoryStore } = require('./store');
 
@@ -136,4 +136,14 @@ test('/archive <day> sends that day, and explains bad input', async () => {
   await handleUpdate({ message: { text: '/archive 2030-01-01', chat: { id: 7 }, from: { id: 7 } } }, { api, store: createMemoryStore(), now });
   assert.equal(calls[0].method, 'sendMessage');
   assert.match(calls[0].params.text, /\/archive 497/);
+});
+
+test('webhookSecret: explicit value, else derived from the token', () => {
+  assert.equal(webhookSecret({ TELEGRAM_BOT_TOKEN: '1:abc', TELEGRAM_WEBHOOK_SECRET: 'mine' }), 'mine');
+  assert.equal(webhookSecret({}), null);
+  const derived = webhookSecret({ TELEGRAM_BOT_TOKEN: '1:abc' });
+  assert.match(derived, /^[0-9a-f]{64}$/); // Telegram allows 1-256 of A-Z a-z 0-9 _ -
+  assert.equal(webhookSecret({ TELEGRAM_BOT_TOKEN: '1:abc' }), derived);
+  assert.notEqual(webhookSecret({ TELEGRAM_BOT_TOKEN: '1:abd' }), derived);
+  assert.ok(!derived.includes('abc'));
 });
