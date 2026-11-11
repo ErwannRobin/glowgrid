@@ -18,7 +18,7 @@ The widget is a small rewrite of the game, not a build of `index.html`: widgets 
 
 The widget plays the current day's puzzle (player's local date, like the website) and switches to the new puzzle when the day changes, so a single message serves every day.
 
-`/yesterday` and `/archive` send the same widget in **archive mode**: it opens on a past day and the player browses every puzzle from #1 (1 Jan 2025, numbered like the website) to yesterday with ‹ ›. Each day's game is kept, so the player can switch days and come back to an unfinished one (the 60 most recently played days fit in the message's 4 KB of `localStorage`). Archive solves are marked ✓ in that message but don't count for the streak, as on the website.
+`/yesterday` and `/archive` send the same widget in **archive mode**: it opens on a past day and the player browses every puzzle from #1 (1 Jan 2025, numbered like the website) to yesterday with ‹ ›. Each day's game is kept, so the player can switch days and come back to an unfinished one (the 60 most recently played days fit in the message's 4 KB of `localStorage`). Archive solves are marked ✓ in that message but don't count for the streak, as on the website. The win screen has a "‹ Day before" button to go to the previous puzzle; on today's puzzle it has a "‹ Yesterday's puzzle" button that makes the bot send a `/yesterday` message.
 
 ## Files
 
@@ -69,6 +69,7 @@ Widgets run in a QuickJS sandbox, not a browser. From the [limits](https://core.
 | Bot | Validates the date (UTC today ± 1 day, for time zones), updates the record, `answerWidgetQuery` with the record, then `editMessageWidgetData` to store it in the message's `chat_data` |
 | Widget | Shows the streak from the answer, and from `chat_data` (`chatDataChanged` event) on later views |
 | `/streak` | Text reply with current and best streak |
+| "‹ Yesterday's puzzle" (today's win screen) | Widget calls `TelegramWidget.request("y")`; the bot answers and sends a `/yesterday` message |
 | `/yesterday`, `/archive` | `sendWidget` without queries; `chat_data` is `{"t": <message unix time>}`, which the widget turns into yesterday in the player's time zone |
 | `/archive 497`, `/archive 2026-10-05` | Same, starting on that day: `chat_data` is `{"d": 20260512}`. Accepts #1 / 2025-01-01 up to UTC today; the widget stops at the player's yesterday |
 

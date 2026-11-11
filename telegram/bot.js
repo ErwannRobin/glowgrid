@@ -180,6 +180,11 @@ async function onMessage(api, store, msg, now) {
 }
 
 async function onWidgetQuery(api, store, q, now) {
+  // "y": the "Yesterday's puzzle" button on today's win screen, same as /yesterday
+  if (q.data === 'y') {
+    await api('answerWidgetQuery', { widget_query_id: q.id });
+    return sendArchive(api, q.chat ? q.chat.id : q.from.id, { t: Math.floor(now / 1000) });
+  }
   const solve = parseSolve(q.data);
   if (!solve || !isPlausibleDay(solve.ymd, now)) {
     return api('answerWidgetQuery', { widget_query_id: q.id });
