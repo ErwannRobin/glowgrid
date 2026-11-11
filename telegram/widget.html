@@ -93,7 +93,7 @@ const key = D => `${D.getFullYear()}-${D.getMonth() + 1}-${D.getDate()}`;
 const num = D => Math.max(1, Math.floor((Date.UTC(D.getFullYear(), D.getMonth(), D.getDate()) - Date.UTC(2025, 0, 1)) / 864e5) + 1);
 const day = n => new Date(2025, 0, n);
 const label = D => 'JanFebMarAprMayJunJulAugSepOctNovDec'.substr(D.getMonth() * 3, 3) + ' ' + D.getDate();
-let K, Y, S, M, won, n, A, V = [], C = [], P = [];
+let K, Y, S, M, won, n, A, V = [], G = {}, C = [], P = [];
 
 // Archive mode (/yesterday, /archive): the bot puts the first day in the chat
 // data, as {"d": YYYYMMDD} or {"t": unix time of the command} (= the day before,
@@ -103,24 +103,30 @@ try {
   if (c.d) A = num(new Date(c.d / 1e4 | 0, (c.d / 100 | 0) % 100 - 1, c.d % 100));
   else if (c.t) A = num(new Date(c.t * 1e3)) - 1;
 } catch (e) {}
+// Saved in this message: G = {n: day on screen, p: [[day, state, moves, won], …]}
+// (games in progress or solved, most recent last), V = solved archive days
 try { V = JSON.parse(localStorage.gv) || []; } catch (e) {}
+try { G = JSON.parse(localStorage.gg) || {}; } catch (e) {}
+G.p = G.p || [];
 const last = () => num(new Date()) - (A ? 1 : 0);
 
 function load(i) {
-  let o = {};
-  try { o = JSON.parse(localStorage.gg) || {}; } catch (e) {}
   // Today's puzzle, or in the archive the asked day, else where the player left off
-  i = A ? i || o.n || A : last();
+  i = A ? i || G.n || A : last();
   n = Math.max(1, Math.min(i, last()));
-  const D = day(n);
+  const D = day(n), g = G.p.find(e => e[0] == n);
   K = key(D); Y = ymd(D);
-  S = gen(K); M = 0; won = 0;
-  if (o.k == K) ({ s: S, m: M, w: won } = o);
+  [S, M, won] = g ? g.slice(1) : [gen(K), 0, 0];
   save(); draw();
 }
 
+// One game per day, kept for the 60 most recently played days (localStorage
+// is 4 KB per message). A reset game (0 moves) is dropped.
 function save() {
-  try { localStorage.gg = JSON.stringify({ k: K, n, s: S, m: M, w: won }); } catch (e) {}
+  G.n = n;
+  G.p = G.p.filter(e => e[0] != n);
+  if (M) G.p = G.p.concat([[n, S, M, won]]).slice(-60);
+  try { localStorage.gg = JSON.stringify(G); } catch (e) {}
 }
 
 // Streak record {s: streak, b: best, l: last solved YYYYMMDD}, written by the bot
