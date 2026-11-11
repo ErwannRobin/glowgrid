@@ -10,7 +10,8 @@ const fs = require('fs');
 const path = require('path');
 const { minifyWidget } = require('./minify');
 const { FIRST_DAY, formatYmd, puzzleNumberFromYmd, shiftYmd, utcYmd, ymdFromPuzzleNumber } = require('./dates');
-const { leaderboardText, parseLeaderboardMode, recordSolve } = require('./leaderboard');
+const { currentDay, leaderboardText, parseLeaderboardMode, recordSolve } = require('./leaderboard');
+const { parseStart, recordStart, recordWin, statsText } = require('./stats');
 
 const SITE_URL = 'https://glow-grid.erwann.app';
 const WIDGET_HEIGHT = 440;
@@ -127,7 +128,7 @@ function sendArchive(api, chatId, start) {
   });
 }
 
-const HELP = '/play — today\'s puzzle\n/yesterday — yesterday\'s puzzle\n/archive — past puzzles (/archive 497 or /archive 2026-10-05)\n/streak — your streak\n/leaderboard — today\'s best players and current streaks (/leaderboard all for all time)\n\nThe puzzle message updates itself every day, so you can keep playing in the same one.';
+const HELP = '/play — today\'s puzzle\n/yesterday — yesterday\'s puzzle\n/archive — past puzzles (/archive 497 or /archive 2026-10-05)\n/streak — your streak\n/leaderboard — today\'s best players and current streaks (/leaderboard_all for all time)\n/stats — players, games and win rate, today and all time\n\nThe puzzle message updates itself every day, so you can keep playing in the same one.';
 
 async function onMessage(api, store, msg, now) {
   const text = (msg.text || '').trim();
@@ -156,13 +157,17 @@ async function onMessage(api, store, msg, now) {
       text: rec ? `🔥 Current streak: ${alive ? rec.s : 0}\n🏆 Best streak: ${rec.b}` : 'No solves yet. Send /play to start.',
     });
   }
-  if (command === '/leaderboard') {
-    const mode = parseLeaderboardMode(arg);
+  if (command === '/leaderboard' || command === '/leaderboard_all') {
+    const mode = command === '/leaderboard_all' ? 'all' : parseLeaderboardMode(arg);
     if (!mode) {
-      return api('sendMessage', { chat_id: chatId, text: 'Use /leaderboard for today and current streaks, or /leaderboard all for all time.' });
+      return api('sendMessage', { chat_id: chatId, text: 'Use /leaderboard for today and current streaks, or /leaderboard_all for all time.' });
     }
     const rec = await getRecord(store, msg.from.id);
     return api('sendMessage', { chat_id: chatId, text: await leaderboardText(store, msg.from, rec, mode, now) });
+  }
+  if (command === '/stats') {
+    const rec = await getRecord(store, msg.from.id);
+    return api('sendMessage', { chat_id: chatId, text: await statsText(store, currentDay(rec, now)) });
   }
   return api('sendMessage', { chat_id: chatId, text: HELP });
 }
@@ -173,6 +178,15 @@ async function onWidgetQuery(api, store, q, now) {
     await api('answerWidgetQuery', { widget_query_id: q.id });
     return sendArchive(api, q.chat ? q.chat.id : q.from.id, { t: Math.floor(now / 1000) });
   }
+  // "s" + YYYYMMDD: a game started (first move), for /stats
+  const start = parseStart(q.data);
+  if (start) {
+    await api('answerWidgetQuery', { widget_query_id: q.id });
+    if (isPlausibleDay(start, now)) {
+      try { await recordStart(store, q.from.id, start); } catch (e) { console.error(e.message); }
+    }
+    return;
+  }
   const solve = parseSolve(q.data);
   if (!solve || !isPlausibleDay(solve.ymd, now)) {
     return api('answerWidgetQuery', { widget_query_id: q.id });
@@ -182,9 +196,9 @@ async function onWidgetQuery(api, store, q, now) {
   const data = JSON.stringify(rec);
   if (!before || rec.l !== before.l) await store.set(storeKey(q.from.id), data);
   try {
-    await recordSolve(store, q.from, solve, rec, now);
+    await Promise.all([recordSolve(store, q.from, solve, rec, now), recordWin(store, q.from.id, solve.ymd)]);
   } catch (e) {
-    console.error(e.message); // the streak is saved; don't fail the answer over the leaderboard
+    console.error(e.message); // the streak is saved; don't fail the answer over the leaderboard or stats
   }
   // Answer first (15 s deadline), then persist the record in the message
   await api('answerWidgetQuery', { widget_query_id: q.id, data });

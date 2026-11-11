@@ -15,7 +15,8 @@ The widget is a small rewrite of the game, not a build of `index.html`: widgets 
 | Progress saved per message and per day (`localStorage`) | PWA / offline (not needed) |
 | Streak and best streak, kept by the bot | |
 | Past puzzles: `/yesterday`, `/archive` (browse with ‹ ›) | |
-| Leaderboards: `/leaderboard` (today), `/leaderboard all` (all time) | |
+| Leaderboards: `/leaderboard` (today), `/leaderboard_all` or `/leaderboard all` (all time) | |
+| Stats: `/stats` (players, games and win rate, today and all time) | |
 
 The widget plays the current day's puzzle (player's local date, like the website) and switches to the new puzzle when the day changes, so a single message serves every day.
 
@@ -29,6 +30,7 @@ The widget plays the current day's puzzle (player's local date, like the website
 | `telegram/minify.js` | Dependency-free minifier, used by both the build and the bot |
 | `telegram/bot.js` | Bot logic: commands, `sendWidget`, solve queries, streaks |
 | `telegram/leaderboard.js` | `/leaderboard`: daily moves, streak and win rankings |
+| `telegram/stats.js` | `/stats`: players, games and win rate |
 | `telegram/dates.js` | YYYYMMDD dates and puzzle numbers |
 | `telegram/store.js` | Storage (strings, sorted sets, hashes): Upstash Redis REST, or in-memory |
 | `api/telegram.js` | Vercel webhook (`POST /api/telegram`) |
@@ -69,12 +71,14 @@ Widgets run in a QuickJS sandbox, not a browser. From the [limits](https://core.
 | Step | Detail |
 |---|---|
 | `/start`, `/play` | `sendWidget` with `allow_queries: true`, `height: 440`, and the player's streak record as `chat_data` |
+| First move | On today's puzzle, the first move of a game (also after Reset or Play again) calls `TelegramWidget.request("s" + YYYYMMDD)`; the bot answers without data and counts a game for `/stats` |
 | Solve | Widget calls `TelegramWidget.request("w" + YYYYMMDD + moves)` (e.g. `w2026111012`) |
 | Bot | Validates the date (UTC today ± 1 day, for time zones), updates the record, `answerWidgetQuery` with the record, then `editMessageWidgetData` to store it in the message's `chat_data` |
 | Widget | Shows the streak from the answer, and from `chat_data` (`chatDataChanged` event) on later views |
 | `/streak` | Text reply with current and best streak |
-| `/leaderboard` | Text reply: top 5 by fewest moves on today's puzzle, top 5 current streaks, and the asker's place |
-| `/leaderboard all` | Text reply: top 5 by days won, top 5 best streaks ever, and the asker's place |
+| `/leaderboard` | Text reply: top 5 by fewest moves on today's puzzle, top 5 current streaks, and the asker's place; ends with a tappable `/leaderboard_all` |
+| `/leaderboard_all`, `/leaderboard all` | Text reply: top 5 by days won, top 5 best streaks ever, and the asker's place |
+| `/stats` | Text reply: players, games and win rate for the asker's day and all time |
 | "‹ Yesterday's puzzle" (today's win screen) | Widget calls `TelegramWidget.request("y")`; the bot answers and sends a `/yesterday` message |
 | `/yesterday`, `/archive` | `sendWidget` without queries; `chat_data` is `{"t": <message unix time>}`, which the widget turns into yesterday in the player's time zone |
 | `/archive 497`, `/archive 2026-10-05` | Same, starting on that day: `chat_data` is `{"d": 20260512}`. Accepts #1 / 2025-01-01 up to UTC today; the widget stops at the player's yesterday |
@@ -93,6 +97,15 @@ Each solve also updates sorted sets in the store (see the top of `telegram/leade
 - **Longest streaks** (all time): each player's best streak.
 
 Names are the player's Telegram first name and last-name initial, saved on each solve and `/leaderboard`. Players who solved before the leaderboard existed appear in the streak boards after their next solve or `/leaderboard`.
+
+### Stats
+
+`/stats` counts only today's puzzle (archive widgets don't talk to the bot). Keys are listed at the top of `telegram/stats.js`.
+
+- **Players**: everyone who started or solved the day's puzzle; all time, everyone since counting began.
+- **Games**: game starts (first move on a fresh grid, so Reset and Play again start a new game).
+- **Win rate**: wins ÷ games. A solve counts as a win only if that player has a game start recorded that day. Widget messages sent before start reports existed still report solves but not starts: those players count as players, not as games or wins, until they send `/play` again.
+- **Today** is the same day as in `/leaderboard`. All-time numbers start on the first day counted ("since …"); there is no backfill.
 
 The bot trusts the client's "solved" claim, like the website trusts its own `localStorage`. Requests are rate-limited by Telegram (5 per 5 s per user).
 

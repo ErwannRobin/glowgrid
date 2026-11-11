@@ -166,6 +166,8 @@ function move(i) {
   if (won) return;
   const a = aff(S, i);
   S = tap(S, i); M++;
+  // Report a new game of today's puzzle (first move, also after Reset) for /stats
+  if (M == 1 && !A && T && T.viewer) T.request('s' + Y).catch(() => {});
   a.forEach(j => C[j].animate([{ transform: 'scale(.86)' }, { transform: 'none' }], 180));
   H && H.impactOccurred('light');
   if (S == FULL) {

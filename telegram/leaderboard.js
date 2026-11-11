@@ -150,7 +150,7 @@ async function currentLeaderboard(store, userId, rec, now) {
     formatBoard('Current streaks', streaks, s => `🔥 ${plural(s, 'day')}`,
       'No streaks yet.', 'You: no streak yet — /play'),
     '',
-    'All-time records: /leaderboard all',
+    'All-time records: /leaderboard_all',
   ].join('\n');
 }
 
@@ -173,7 +173,8 @@ async function allTimeLeaderboard(store, userId) {
   ].join('\n');
 }
 
-// "/leaderboard [all]": argument → mode, or null if unknown
+// "/leaderboard [all]" (or "/leaderboard_all", which Telegram makes tappable as
+// one command): argument → mode, or null if unknown
 function parseLeaderboardMode(arg) {
   const a = (arg || '').toLowerCase();
   if (['', 'today', 'now', 'current', 'actual'].includes(a)) return 'current';
@@ -187,4 +188,4 @@ async function leaderboardText(store, from, rec, mode, now) {
   return mode === 'all' ? allTimeLeaderboard(store, from.id) : currentLeaderboard(store, from.id, rec, now);
 }
 
-module.exports = { K, displayName, leaderboardText, parseLeaderboardMode, recordSolve };
+module.exports = { K, currentDay, displayName, leaderboardText, parseLeaderboardMode, recordSolve };
