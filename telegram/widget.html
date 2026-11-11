@@ -180,14 +180,18 @@ function move(i) {
   preview(-1); save(); draw();
 }
 
-// Scale everything with the widget's box (designed for 360 × 440). Some
-// clients (Telegram for iPhone) give a box several times larger in CSS
-// pixels, so fixed pixel sizes looked tiny there.
+// Scale everything with the widget's box (designed for 360 × 440, the height
+// the bot asks for). Telegram for iPhone doesn't give html/body a height, so
+// the body's own box is only as tall as its content: measure the window
+// instead, and fall back to 360 × 440 when it looks wrong.
 function fit() {
-  const r = document.body.getBoundingClientRect(), b = document.body.style,
-    u = Math.max(.6, Math.min(r.width / 360, r.height / 440));
+  const e = document.documentElement, b = document.body.style,
+    w = Math.max(window.innerWidth || 0, e.clientWidth), h = Math.max(window.innerHeight || 0, e.clientHeight),
+    W = w < 200 ? 360 : w, H = h < 300 ? 440 : h,
+    u = Math.min(W / 360, H / 440);
+  b.height = H + 'px';
   b.fontSize = 14 * u + 'px';
-  b.setProperty('--s', Math.max(100, Math.min(r.width - 24 * u, r.height - 96 * u)) + 'px');
+  b.setProperty('--s', Math.max(100, Math.min(W - 24 * u, H - 96 * u)) + 'px');
 }
 
 $('t').innerHTML = [...'GlowGrid'].map((c, i) => `<span style="color:hsl(${180 + i * 25},80%,65%)">${c}</span>`).join('');
@@ -209,13 +213,13 @@ const go = d => () => { H && H.selectionChanged(); load(n + d); };
 $('p').onclick = $('b').onclick = go(-1);
 $('x').onclick = go(1);
 document.body.classList.toggle('ar', !!A);
-new ResizeObserver(fit).observe(document.body);
+window.ResizeObserver && new ResizeObserver(fit).observe(document.documentElement);
 fit(); load();
 if (T) {
   T.onEvent('chatDataChanged', () => streak());
   // A message stays in the chat: switch to the new puzzle when the day changes
   // (in the archive, "yesterday" moves forward too)
-  T.onEvent('activated', () => A ? draw() : K != key(new Date()) && load());
+  T.onEvent('activated', () => { fit(); A ? draw() : K != key(new Date()) && load(); });
   T.ready();
 }
 </script>
