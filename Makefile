@@ -1,7 +1,7 @@
 PORT ?= 8000
 
 .DEFAULT_GOAL := help
-.PHONY: help serve check og bump-cache playables playables-dev telegram telegram-preview telegram-test telegram-poll telegram-webhook
+.PHONY: help serve check og bump-cache playables playables-dev telegram telegram-size telegram-preview telegram-test telegram-poll telegram-webhook
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-17s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -28,6 +28,9 @@ playables-dev: ## Build the Playables version with a local SDK mock and serve it
 
 telegram: ## Build and check the Telegram widget (dist/telegram/widget.html)
 	@node scripts/build-telegram-widget.js
+
+telegram-size: ## Show the Telegram widget size against its limits (4096 bytes after zlib)
+	@node scripts/build-telegram-widget.js --size
 
 telegram-preview: telegram ## Serve the Telegram widget with a local TelegramWidget mock
 	@echo "Open http://127.0.0.1:$(PORT)/dist/telegram/preview.html"
