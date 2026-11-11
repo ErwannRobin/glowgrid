@@ -29,6 +29,35 @@ function shiftYmd(ymd, days) {
   return utcYmd(new Date(Date.UTC(y, m - 1, d + days)));
 }
 
+const MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
+const formatYmd = ymd => `${ymd % 100} ${MONTHS[Math.floor(ymd / 100) % 100 - 1]} ${Math.floor(ymd / 10000)}`;
+
+// ── Archive ──────────────────────────────────────────────────
+
+// Puzzle numbers, as on the website: #1 is 1 Jan 2025
+const FIRST_DAY = 20250101;
+const ymdFromPuzzleNumber = n => shiftYmd(FIRST_DAY, n - 1);
+const puzzleNumberFromYmd = ymd => {
+  const utc = v => Date.UTC(Math.floor(v / 10000), Math.floor(v / 100) % 100 - 1, v % 100);
+  return Math.round((utc(ymd) - utc(FIRST_DAY)) / 86400000) + 1;
+};
+
+// "/archive" argument: a puzzle number ("497", "#497") or a date ("2026-10-05").
+// Returns YYYYMMDD, or null if invalid or not yet in the archive. Days up to UTC
+// today are accepted; the widget stops at yesterday in the player's time zone.
+function parseArchiveDay(arg, now = new Date()) {
+  let ymd, m;
+  if ((m = /^#?(\d{1,5})$/.exec(arg || ''))) {
+    ymd = ymdFromPuzzleNumber(Number(m[1]));
+  } else if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(arg || ''))) {
+    ymd = Number(m[1]) * 10000 + Number(m[2]) * 100 + Number(m[3]);
+    if (shiftYmd(ymd, 0) !== ymd) return null; // not a real calendar date
+  } else {
+    return null;
+  }
+  return ymd >= FIRST_DAY && ymd <= utcYmd(now) ? ymd : null;
+}
+
 // ── Streaks ──────────────────────────────────────────────────
 
 // Widget request data for a solve: "w" + YYYYMMDD (player's local date) + moves
@@ -77,25 +106,57 @@ async function getRecord(store, userId) {
   try { return JSON.parse(await store.get(storeKey(userId))) || null; } catch { return null; }
 }
 
-async function sendPuzzle(api, store, chatId, userId) {
-  const rec = await getRecord(store, userId);
+function sendWidget(api, chatId, params) {
   return api('sendWidget', {
     chat_id: chatId,
     html: getWidgetHtml(),
     height: WIDGET_HEIGHT,
-    chat_data: rec ? JSON.stringify(rec) : '',
-    allow_queries: true,
-    caption: 'Light up all 25 cells. ON cells flip their + neighbours, OFF cells their × neighbours. A new puzzle every day, right here in this message.',
     reply_markup: { inline_keyboard: [[{ text: 'Play on the web', url: SITE_URL }]] },
+    ...params,
   });
 }
 
-async function onMessage(api, store, msg) {
+// Today's puzzle; chat data is the player's streak record
+async function sendPuzzle(api, store, chatId, userId) {
+  const rec = await getRecord(store, userId);
+  return sendWidget(api, chatId, {
+    chat_data: rec ? JSON.stringify(rec) : '',
+    allow_queries: true,
+    caption: 'Light up all 25 cells. ON cells flip their + neighbours, OFF cells their × neighbours. A new puzzle every day, right here in this message.',
+  });
+}
+
+// Past puzzles. Chat data gives the first day: {"d": YYYYMMDD}, or {"t": unix
+// time} for "yesterday", which the widget works out in the player's time zone.
+// No queries: archive solves don't count for the streak.
+function sendArchive(api, chatId, start) {
+  const first = start.d ? `Puzzle #${puzzleNumberFromYmd(start.d)} (${formatYmd(start.d)})` : 'Yesterday\'s puzzle';
+  return sendWidget(api, chatId, {
+    chat_data: JSON.stringify(start),
+    caption: `${first}. Use ‹ › to browse every puzzle since #1 (1 Jan 2025). Archive solves don't count for your streak.`,
+  });
+}
+
+const HELP = '/play — today\'s puzzle\n/yesterday — yesterday\'s puzzle\n/archive — past puzzles (/archive 497 or /archive 2026-10-05)\n/streak — your streak\n\nThe puzzle message updates itself every day, so you can keep playing in the same one.';
+
+async function onMessage(api, store, msg, now) {
   const text = (msg.text || '').trim();
   const command = text.startsWith('/') ? text.split(/[\s@]/)[0].toLowerCase() : '';
+  const arg = text.split(/\s+/)[1];
   const chatId = msg.chat.id;
   if (command === '/start' || command === '/play') {
     return sendPuzzle(api, store, chatId, msg.from.id);
+  }
+  if (command === '/yesterday' || (command === '/archive' && !arg)) {
+    return sendArchive(api, chatId, { t: msg.date || Math.floor(now / 1000) });
+  }
+  if (command === '/archive') {
+    const d = parseArchiveDay(arg, now);
+    if (d) return sendArchive(api, chatId, { d });
+    return api('sendMessage', {
+      chat_id: chatId,
+      text: 'Pick a puzzle number or a date from 1 Jan 2025 to yesterday, e.g. /archive 497 or /archive 2026-10-05.',
+    });
   }
   if (command === '/streak') {
     const rec = await getRecord(store, msg.from.id);
@@ -105,10 +166,7 @@ async function onMessage(api, store, msg) {
       text: rec ? `🔥 Current streak: ${alive ? rec.s : 0}\n🏆 Best streak: ${rec.b}` : 'No solves yet. Send /play to start.',
     });
   }
-  return api('sendMessage', {
-    chat_id: chatId,
-    text: '/play — today\'s puzzle\n/streak — your streak\n\nThe puzzle message updates itself every day, so you can keep playing in the same one.',
-  });
+  return api('sendMessage', { chat_id: chatId, text: HELP });
 }
 
 async function onWidgetQuery(api, store, q, now) {
@@ -132,7 +190,7 @@ async function onWidgetQuery(api, store, q, now) {
 }
 
 async function handleUpdate(update, { api, store, now = new Date() }) {
-  if (update.message) return onMessage(api, store, update.message);
+  if (update.message) return onMessage(api, store, update.message, now);
   if (update.widget_query) return onWidgetQuery(api, store, update.widget_query, now);
   // Not used: GlowGrid widgets are not shared. Answer so the tap doesn't hang.
   if (update.shared_widget_query) return api('answerWidgetQuery', { widget_query_id: update.shared_widget_query.id });
@@ -142,5 +200,5 @@ const ALLOWED_UPDATES = ['message', 'widget_query', 'shared_widget_query'];
 
 module.exports = {
   ALLOWED_UPDATES, createApi, getWidgetHtml, handleUpdate,
-  isPlausibleDay, nextRecord, parseSolve, shiftYmd, utcYmd,
+  isPlausibleDay, nextRecord, parseArchiveDay, parseSolve, puzzleNumberFromYmd, shiftYmd, utcYmd,
 };

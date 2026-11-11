@@ -11,11 +11,14 @@ The widget is a small rewrite of the game, not a build of `index.html`: widgets 
 | Daily puzzle — identical to the website's (checked at build time) | Sound (no audio in widgets) |
 | `+` / `×` toggle rules, rainbow cells, move counter | Hints and solver |
 | Long-press preview of the cells a tap flips | Replay, heatmap, video export, share links |
-| Telegram haptics on taps and on a win | Song mode, settings, past puzzles |
+| Telegram haptics on taps and on a win | Song mode, settings |
 | Progress saved per message (`localStorage`) | PWA / offline (not needed) |
 | Streak and best streak, kept by the bot | |
+| Past puzzles: `/yesterday`, `/archive` (browse with ‹ ›) | |
 
 The widget plays the current day's puzzle (player's local date, like the website) and switches to the new puzzle when the day changes, so a single message serves every day.
+
+`/yesterday` and `/archive` send the same widget in **archive mode**: it opens on a past day and the player browses every puzzle from #1 (1 Jan 2025, numbered like the website) to yesterday with ‹ ›. Archive solves are marked ✓ in that message but don't count for the streak, as on the website.
 
 ## Files
 
@@ -45,7 +48,7 @@ The build fails if the widget:
 - has an inline script that doesn't compile, an external URL, or an API the widget sandbox lacks (`fetch`, `AudioContext`, `navigator.vibrate`, …);
 - generates a different puzzle from `index.html` for any day of 2025–2026. The widget's `// core … // /core` region is compared with `generatePuzzleForKey()` and its helpers in `index.html`, so change both together.
 
-The preview shows the widget in a resizable 360 × 440 "bubble" (Telegram allows 200–600 px wide, 50–600 px tall). The mock simulates the bot: a solve updates a streak kept in `localStorage`. From the console: `tgMock.setChatData('{"s":3,"b":5,"l":20261109}')`, `tgMock.reset()`.
+The preview shows the widget in a resizable 360 × 440 "bubble" (Telegram allows 200–600 px wide, 50–600 px tall). The mock simulates the bot: a solve updates a streak kept in `localStorage`. From the console: `tgMock.setChatData('{"s":3,"b":5,"l":20261109}')`, `tgMock.reset()`, and `tgMock.archive(20261005)` or `tgMock.archive()` (yesterday) for archive mode.
 
 ## Widget constraints that shaped the code
 
@@ -65,6 +68,10 @@ Widgets run in a QuickJS sandbox, not a browser. From the [limits](https://core.
 | Bot | Validates the date (UTC today ± 1 day, for time zones), updates the record, `answerWidgetQuery` with the record, then `editMessageWidgetData` to store it in the message's `chat_data` |
 | Widget | Shows the streak from the answer, and from `chat_data` (`chatDataChanged` event) on later views |
 | `/streak` | Text reply with current and best streak |
+| `/yesterday`, `/archive` | `sendWidget` without queries; `chat_data` is `{"t": <message unix time>}`, which the widget turns into yesterday in the player's time zone |
+| `/archive 497`, `/archive 2026-10-05` | Same, starting on that day: `chat_data` is `{"d": 20260512}`. Accepts #1 / 2025-01-01 up to UTC today; the widget stops at the player's yesterday |
+
+The widget tells the modes apart by `chat_data`: `d` or `t` means archive, anything else is a streak record.
 
 Streak record (JSON, stored under `gg:tg:<user id>` and in `chat_data`): `{"s": current streak, "b": best streak, "l": last solved day as YYYYMMDD}`. Solving the same day again doesn't change it; missing a day resets `s` to 1.
 
@@ -81,7 +88,7 @@ The bot trusts the client's "solved" claim, like the website trusts its own `loc
    TELEGRAM_BOT_TOKEN=... TELEGRAM_WEBHOOK_SECRET=... make telegram-webhook URL=https://glow-grid.erwann.app
    ```
 
-   This calls `setWebhook` with `allowed_updates` including `widget_query`, and registers the `/play` and `/streak` commands. Check it with `node scripts/telegram.js info`.
+   This calls `setWebhook` with `allowed_updates` including `widget_query`, and registers the `/play`, `/yesterday`, `/archive` and `/streak` commands (run it again after adding a command). Check it with `node scripts/telegram.js info`.
 
 `vercel.json` adds `telegram/widget.html` to the function bundle; the bot minifies it on cold start.
 

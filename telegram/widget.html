@@ -33,6 +33,11 @@ small { color: #8b90b8; font-size: 13px }
 button {
   font: inherit; color: inherit; background: #1d2140; border: 0; border-radius: 10px; padding: 6px 14px;
 }
+button:disabled { color: #3a3f63 }
+header small { white-space: nowrap }
+header button { display: none; padding: 2px 8px }
+.ar header button { display: inline }
+@media (max-width: 280px) { h1 { font-size: 15px; letter-spacing: 0 } header button { padding: 2px 5px } }
 #w {
   position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
   gap: 8px; background: #0a0b16f2; text-align: center; padding: 16px;
@@ -42,10 +47,10 @@ button {
 </style>
 </head>
 <body>
-<header><h1 id="t"></h1><small id="n"></small></header>
+<header><h1 id="t"></h1><small><button id="p">‹</button> <span id="n"></span> <button id="x">›</button></small></header>
 <div id="g"></div>
 <footer><small id="m"></small><small id="k"></small><button id="r">↺</button></footer>
-<div id="w"><b>✨ Solved!</b><div id="wm"></div><div id="wk"></div><small id="wn"></small><button id="a">Play again</button></div>
+<div id="w"><b>✨ Solved!</b><div id="wm"></div><div id="wk"></div><small id="wn"></small><button id="a">Play again</button><button id="b">‹ Day before</button></div>
 <script>
 const T = window.TelegramWidget, H = T && T.HapticFeedback, $ = id => document.getElementById(id);
 const FULL = 33554431; // 2^25 - 1: all 25 cells on
@@ -84,28 +89,44 @@ function gen(k) {
 // Day keys: "Y-M-D" (same as the website) and the 8-digit YYYYMMDD the bot uses
 const ymd = D => D.getFullYear() * 1e4 + (D.getMonth() + 1) * 100 + D.getDate();
 const key = D => `${D.getFullYear()}-${D.getMonth() + 1}-${D.getDate()}`;
-let K, Y, S, M, won, C = [], P = [];
+// Puzzle numbers, as on the website: #1 is 1 Jan 2025
+const num = D => Math.max(1, Math.floor((Date.UTC(D.getFullYear(), D.getMonth(), D.getDate()) - Date.UTC(2025, 0, 1)) / 864e5) + 1);
+const day = n => new Date(2025, 0, n);
+const label = D => 'JanFebMarAprMayJunJulAugSepOctNovDec'.substr(D.getMonth() * 3, 3) + ' ' + D.getDate();
+let K, Y, S, M, won, n, A, V = [], C = [], P = [];
 
-function load() {
-  const D = new Date();
-  K = key(D);
-  Y = ymd(D);
+// Archive mode (/yesterday, /archive): the bot puts the first day in the chat
+// data, as {"d": YYYYMMDD} or {"t": unix time of the command} (= the day before,
+// in the player's time zone). The player browses every puzzle up to yesterday.
+try {
+  const c = JSON.parse(T.chatData) || {};
+  if (c.d) A = num(new Date(c.d / 1e4 | 0, (c.d / 100 | 0) % 100 - 1, c.d % 100));
+  else if (c.t) A = num(new Date(c.t * 1e3)) - 1;
+} catch (e) {}
+try { V = JSON.parse(localStorage.gv) || []; } catch (e) {}
+const last = () => num(new Date()) - (A ? 1 : 0);
+
+function load(i) {
+  let o = {};
+  try { o = JSON.parse(localStorage.gg) || {}; } catch (e) {}
+  // Today's puzzle, or in the archive the asked day, else where the player left off
+  i = A ? i || o.n || A : last();
+  n = Math.max(1, Math.min(i, last()));
+  const D = day(n);
+  K = key(D); Y = ymd(D);
   S = gen(K); M = 0; won = 0;
-  try {
-    const o = JSON.parse(localStorage.gg);
-    if (o.k == K) ({ s: S, m: M, w: won } = o);
-  } catch (e) {}
-  $('n').textContent = '#' + Math.max(1, Math.floor((Date.UTC(D.getFullYear(), D.getMonth(), D.getDate()) - Date.UTC(2025, 0, 1)) / 864e5) + 1);
-  draw();
+  if (o.k == K) ({ s: S, m: M, w: won } = o);
+  save(); draw();
 }
 
 function save() {
-  try { localStorage.gg = JSON.stringify({ k: K, s: S, m: M, w: won }); } catch (e) {}
+  try { localStorage.gg = JSON.stringify({ k: K, n, s: S, m: M, w: won }); } catch (e) {}
 }
 
 // Streak record {s: streak, b: best, l: last solved YYYYMMDD}, written by the bot
 // to the message's chat data; d is the bot's fresher answer after a solve
 function streak(d) {
+  if (A) return;
   let o = {};
   try { o = JSON.parse(d || T && T.chatData) || {}; } catch (e) {}
   const D = new Date(); D.setDate(D.getDate() - 1);
@@ -118,7 +139,12 @@ function draw() {
   C.forEach((c, i) => c.classList.toggle('on', !!(S >> i & 1)));
   $('m').textContent = M + ' moves';
   $('wm').textContent = `in ${M} moves`;
-  $('wn').textContent = 'New puzzle tomorrow';
+  $('n').textContent = '#' + n + (A && V.includes(n) ? ' ✓' : '');
+  $('p').disabled = n < 2;
+  $('x').disabled = n >= last();
+  $('b').style.display = A && n > 1 ? '' : 'none';
+  $('wn').textContent = A ? `Puzzle #${n} · ${label(day(n))}` : 'New puzzle tomorrow';
+  if (A) $('k').textContent = label(day(n));
   document.body.classList.toggle('won', !!won);
   streak();
 }
@@ -138,8 +164,13 @@ function move(i) {
   if (S == FULL) {
     won = 1;
     H && H.notificationOccurred('success');
-    // Report the solve; the bot updates the streak and answers with the new record
-    if (T && T.viewer) T.request('w' + Y + M).then(a => streak(a.result), () => {});
+    // Archive solves are kept here only (✓ in the header); they don't count for the streak
+    if (A) {
+      V.includes(n) || V.push(n);
+      try { localStorage.gv = JSON.stringify(V.slice(-300)); } catch (e) {}
+    }
+    // Report today's solve; the bot updates the streak and answers with the new record
+    else if (T && T.viewer) T.request('w' + Y + M).then(a => streak(a.result), () => {});
   }
   preview(-1); save(); draw();
 }
@@ -164,12 +195,17 @@ $('r').onclick = $('a').onclick = () => {
   S = gen(K); M = 0; won = 0;
   save(); draw();
 };
+const go = d => () => { H && H.selectionChanged(); load(n + d); };
+$('p').onclick = $('b').onclick = go(-1);
+$('x').onclick = go(1);
+document.body.classList.toggle('ar', !!A);
 new ResizeObserver(fit).observe(document.body);
 fit(); load();
 if (T) {
   T.onEvent('chatDataChanged', () => streak());
   // A message stays in the chat: switch to the new puzzle when the day changes
-  T.onEvent('activated', () => K != key(new Date()) && load());
+  // (in the archive, "yesterday" moves forward too)
+  T.onEvent('activated', () => A ? draw() : K != key(new Date()) && load());
   T.ready();
 }
 </script>

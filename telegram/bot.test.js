@@ -1,11 +1,12 @@
 'use strict';
-// Run with: node --test telegram/   (or make telegram-test)
+// Run with: node --test telegram/bot.test.js   (or make telegram-test)
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const zlib = require('zlib');
 const {
-  getWidgetHtml, handleUpdate, isPlausibleDay, nextRecord, parseSolve, shiftYmd,
+  getWidgetHtml, handleUpdate, isPlausibleDay, nextRecord, parseArchiveDay, parseSolve,
+  puzzleNumberFromYmd, shiftYmd,
 } = require('./bot');
 const { createMemoryStore } = require('./store');
 
@@ -89,4 +90,50 @@ test('an implausible solve is answered without data and stores nothing', async (
   }, { api, store, now });
   assert.equal(await store.get('gg:tg:7'), null);
   assert.deepEqual(calls, [{ method: 'answerWidgetQuery', params: { widget_query_id: 'q2' } }]);
+});
+
+test('puzzle numbers match the website (#1 is 2025-01-01)', () => {
+  assert.equal(puzzleNumberFromYmd(20250101), 1);
+  assert.equal(puzzleNumberFromYmd(20260512), 497);
+  assert.equal(puzzleNumberFromYmd(20261111), 680);
+});
+
+test('parseArchiveDay accepts puzzle numbers and dates up to UTC today', () => {
+  const now = new Date(Date.UTC(2026, 10, 11, 12));
+  assert.equal(parseArchiveDay('497', now), 20260512);
+  assert.equal(parseArchiveDay('#1', now), 20250101);
+  assert.equal(parseArchiveDay('2026-10-05', now), 20261005);
+  assert.equal(parseArchiveDay('2026-11-11', now), 20261111);
+  assert.equal(parseArchiveDay('2026-11-12', now), null); // future
+  assert.equal(parseArchiveDay('681', now), null);        // future
+  assert.equal(parseArchiveDay('0', now), null);
+  assert.equal(parseArchiveDay('2024-12-31', now), null); // before #1
+  assert.equal(parseArchiveDay('2026-02-30', now), null);
+  assert.equal(parseArchiveDay('oct', now), null);
+});
+
+test('/yesterday and bare /archive send an archive widget anchored on the message time', async () => {
+  for (const text of ['/yesterday', '/archive', '/archive@GlowGridBot']) {
+    const { api, calls } = fakeApi();
+    await handleUpdate({ message: { text, date: 1794398400, chat: { id: 7 }, from: { id: 7 } } },
+      { api, store: createMemoryStore() });
+    assert.equal(calls.length, 1, text);
+    assert.equal(calls[0].method, 'sendWidget');
+    assert.equal(calls[0].params.chat_data, '{"t":1794398400}');
+    assert.equal(calls[0].params.allow_queries, undefined); // archive solves aren't reported
+  }
+});
+
+test('/archive <day> sends that day, and explains bad input', async () => {
+  const now = new Date(Date.UTC(2026, 10, 11, 12));
+  let { api, calls } = fakeApi();
+  await handleUpdate({ message: { text: '/archive 497', chat: { id: 7 }, from: { id: 7 } } }, { api, store: createMemoryStore(), now });
+  assert.equal(calls[0].method, 'sendWidget');
+  assert.equal(calls[0].params.chat_data, '{"d":20260512}');
+  assert.match(calls[0].params.caption, /^Puzzle #497 \(12 May 2026\)/);
+
+  ({ api, calls } = fakeApi());
+  await handleUpdate({ message: { text: '/archive 2030-01-01', chat: { id: 7 }, from: { id: 7 } } }, { api, store: createMemoryStore(), now });
+  assert.equal(calls[0].method, 'sendMessage');
+  assert.match(calls[0].params.text, /\/archive 497/);
 });

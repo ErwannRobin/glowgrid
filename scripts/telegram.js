@@ -11,6 +11,8 @@ const { createStore } = require('../telegram/store');
 
 const COMMANDS = [
   { command: 'play', description: 'Today\'s puzzle' },
+  { command: 'yesterday', description: 'Yesterday\'s puzzle' },
+  { command: 'archive', description: 'Past puzzles' },
   { command: 'streak', description: 'Your streak' },
 ];
 
