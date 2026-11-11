@@ -43,11 +43,12 @@ The widget plays the current day's puzzle (player's local date, like the website
 make telegram           # → dist/telegram/widget.html (exactly what the bot sends)
 make telegram-preview   # → http://127.0.0.1:8000/dist/telegram/preview.html
 make telegram-test      # build checks + bot tests
+make telegram-size      # widget size against the limits
 ```
 
 The build fails if the widget:
 
-- exceeds 32768 bytes raw or 4096 bytes after zlib level 9 (it is currently ~2.5 KB);
+- exceeds 32768 bytes raw or 4096 bytes after zlib level 9 (it is currently ~3.2 KB after zlib, 78% of the limit; `make telegram-size` gives the exact figures);
 - has an inline script that doesn't compile, an external URL, or an API the widget sandbox lacks (`fetch`, `AudioContext`, `navigator.vibrate`, …);
 - generates a different puzzle from `index.html` for any day of 2025–2026. The widget's `// core … // /core` region is compared with `generatePuzzleForKey()` and its helpers in `index.html`, so change both together.
 

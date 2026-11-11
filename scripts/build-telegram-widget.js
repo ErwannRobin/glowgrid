@@ -5,6 +5,8 @@
 //     → dist/telegram/widget.html   exactly what the bot sends
 //     → dist/telegram/preview.html  the widget in a resizable frame with a
 //                                   TelegramWidget mock, for local testing
+//   node scripts/build-telegram-widget.js --size
+//     Only report the size against the limits (exits 1 if over).
 //
 // Checks (https://core.telegram.org/bots/widgets#limits):
 //   - at most 32768 bytes of HTML and 4096 bytes after zlib level 9;
@@ -33,6 +35,16 @@ const html = minifyWidget(source);
 // 1. Size limits
 const raw = Buffer.byteLength(html);
 const packed = zlib.deflateSync(Buffer.from(html), { level: 9 }).length;
+if (process.argv.includes('--size')) {
+  const row = (label, n, max) => `${label.padEnd(10)}${String(n).padStart(6)} bytes` +
+    (max ? `  ${String(Math.round(n / max * 100)).padStart(3)}% of ${max}, ${max - n} left` : '');
+  console.log([
+    row('source', Buffer.byteLength(source)),
+    row('minified', raw, MAX_RAW),
+    row('zlib -9', packed, MAX_ZLIB),
+  ].join('\n'));
+  process.exit(raw > MAX_RAW || packed > MAX_ZLIB ? 1 : 0);
+}
 if (raw > MAX_RAW) fail(`${raw} bytes of HTML (limit ${MAX_RAW})`);
 if (packed > MAX_ZLIB) fail(`${packed} bytes after zlib level 9 (limit ${MAX_ZLIB})`);
 if (html.includes('\u0000')) fail('HTML contains U+0000');
