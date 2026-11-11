@@ -49,7 +49,7 @@ header button { display: none; padding: .15em .6em }
 <header><h1 id="t"></h1><small><button id="p">‹</button> <span id="n"></span> <button id="x">›</button></small></header>
 <div id="g"></div>
 <footer><small id="m"></small><small id="k"></small><button id="r">↺</button></footer>
-<div id="w"><b>✨ Solved!</b><div id="wm"></div><div id="wk"></div><small id="wn"></small><button id="a">Play again</button><button id="b">‹ Day before</button></div>
+<div id="w"><b>✨ Solved!</b><div id="wm"></div><div id="wk"></div><small id="wn"></small><button id="a">Play again</button><button id="b"></button></div>
 <script>
 const T = window.TelegramWidget, H = T && T.HapticFeedback, $ = id => document.getElementById(id);
 const FULL = 33554431; // 2^25 - 1: all 25 cells on
@@ -147,7 +147,9 @@ function draw() {
   $('n').textContent = '#' + n + (A && V.includes(n) ? ' ✓' : '');
   $('p').disabled = n < 2;
   $('x').disabled = n >= last();
-  $('b').style.display = A && n > 1 ? '' : 'none';
+  // Win screen: the day before in the archive, else yesterday's puzzle (sent by the bot)
+  $('b').style.display = A ? n > 1 ? '' : 'none' : T && T.viewer ? '' : 'none';
+  $('b').textContent = A ? '‹ Day before' : '‹ Yesterday\'s puzzle';
   $('wn').textContent = A ? `Puzzle #${n} · ${label(day(n))}` : 'New puzzle tomorrow';
   if (A) $('k').textContent = label(day(n));
   document.body.classList.toggle('won', !!won);
@@ -210,7 +212,9 @@ $('r').onclick = $('a').onclick = () => {
   save(); draw();
 };
 const go = d => () => { H && H.selectionChanged(); load(n + d); };
-$('p').onclick = $('b').onclick = go(-1);
+$('p').onclick = go(-1);
+// Today's win screen asks the bot for a /yesterday message (needs the tap, like the solve)
+$('b').onclick = () => A ? go(-1)() : T.request('y').catch(() => {});
 $('x').onclick = go(1);
 document.body.classList.toggle('ar', !!A);
 window.ResizeObserver && new ResizeObserver(fit).observe(document.documentElement);

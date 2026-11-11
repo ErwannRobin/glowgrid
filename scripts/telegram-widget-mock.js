@@ -30,6 +30,8 @@
     ready() { console.log('[widget] ready'); },
     request(data) {
       console.log('[request]', data);
+      // "Yesterday's puzzle" on the win screen: the bot sends a /yesterday message
+      if (data === 'y') { setTimeout(() => window.tgMock.archive(), 300); return Promise.resolve({ result: null }); }
       const m = /^w(\d{8})(\d+)$/.exec(data);
       if (!m) return Promise.resolve({ result: null });
       const ymd = +m[1];

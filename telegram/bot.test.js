@@ -147,3 +147,14 @@ test('webhookSecret: explicit value, else derived from the token', () => {
   assert.notEqual(webhookSecret({ TELEGRAM_BOT_TOKEN: '1:abd' }), derived);
   assert.ok(!derived.includes('abc'));
 });
+
+test('"y" widget query (win screen button) sends yesterday\'s puzzle', async () => {
+  const { api, calls } = fakeApi();
+  const now = new Date(Date.UTC(2026, 10, 10, 12));
+  await handleUpdate({ widget_query: { id: 'q1', data: 'y', from: { id: 7 }, chat: { id: 7 }, message_id: 3 } },
+    { api, store: createMemoryStore(), now });
+  assert.deepEqual(calls.map(c => c.method), ['answerWidgetQuery', 'sendWidget']);
+  assert.equal(calls[1].params.chat_id, 7);
+  assert.equal(calls[1].params.chat_data, JSON.stringify({ t: Math.floor(now / 1000) }));
+  assert.ok(!calls[1].params.allow_queries);
+});
