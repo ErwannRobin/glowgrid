@@ -78,6 +78,7 @@ Widgets run in a QuickJS sandbox, not a browser. From the [limits](https://core.
 | `/streak` | Text reply with current and best streak |
 | `/leaderboard` | Text reply: top 5 by fewest moves on today's puzzle, top 5 current streaks, and the asker's place; ends with a tappable `/leaderboard_all` |
 | `/leaderboard_all`, `/leaderboard all` | Text reply: top 5 by days won, top 5 best streaks ever, and the asker's place |
+| `/about` | Text reply: what GlowGrid is, the rules, and links to the website and the source |
 | `/stats` | Text reply: players, games and win rate for the asker's day and all time |
 | "‹ Yesterday's puzzle" (today's win screen) | Widget calls `TelegramWidget.request("y")`; the bot answers and sends a `/yesterday` message |
 | `/yesterday`, `/archive` | `sendWidget` without queries; `chat_data` is `{"t": <message unix time>}`, which the widget turns into yesterday in the player's time zone |
@@ -123,7 +124,7 @@ The bot trusts the client's "solved" claim, like the website trusts its own `loc
 
    It uses `TELEGRAM_WEBHOOK_BASE_URL`; pass `URL=https://...` to target another deployment once.
 
-   This calls `setWebhook` with `allowed_updates` including `widget_query`, and registers the menu commands `/play`, `/archive`, `/leaderboard` and `/help` (`COMMANDS` in `scripts/telegram.js`; kept short for phones, so `/yesterday`, `/streak`, `/stats` and `/leaderboard_all` are left out but listed in `/help` and linked from other replies; run it again after changing it). Check it with `node scripts/telegram.js info`. Before switching, it sends an empty update to the deployment and stops without changing anything if the deployment rejects the secret (for example, a `TELEGRAM_WEBHOOK_SECRET` is still set on Vercel).
+   This calls `setWebhook` with `allowed_updates` including `widget_query`, and registers the menu commands `/play`, `/archive`, `/leaderboard` and `/help` (`COMMANDS` in `scripts/telegram.js`; kept short for phones, so `/yesterday`, `/streak`, `/stats`, `/about` and `/leaderboard_all` are left out but listed in `/help` and linked from other replies; run it again after changing it). Check it with `node scripts/telegram.js info`. Before switching, it sends an empty update to the deployment and stops without changing anything if the deployment rejects the secret (for example, a `TELEGRAM_WEBHOOK_SECRET` is still set on Vercel).
 
 `vercel.json` adds `telegram/widget.html` to the function bundle; the bot minifies it on cold start.
 

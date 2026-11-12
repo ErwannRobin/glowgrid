@@ -299,5 +299,12 @@ test('the widget reports a game start on the first move of today\'s puzzle', () 
 
 test('/help lists the commands left out of the menu', async () => {
   const text = await leaderboard(createMemoryStore(), 1, '/help', new Date());
-  for (const c of ['/yesterday', '/streak', '/stats', '/leaderboard_all']) assert.ok(text.includes(c), c);
+  for (const c of ['/yesterday', '/streak', '/stats', '/about', '/leaderboard_all']) assert.ok(text.includes(c), c);
+});
+
+test('/about describes the game and links the website', async () => {
+  const text = await leaderboard(createMemoryStore(), 1, '/about', new Date());
+  assert.match(text, /Lights Out/);
+  assert.match(text, /https:\/\/glow-grid\.erwann\.app/);
+  assert.match(text, /\/play/);
 });

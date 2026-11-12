@@ -22,8 +22,8 @@ try {
 const { ALLOWED_UPDATES, createApi, handleUpdate, webhookSecret } = require('../telegram/bot');
 const { createStore } = require('../telegram/store');
 
-// The bot's menu: kept short for small screens. /yesterday, /streak and /stats
-// still work, are listed in /help and linked from other replies.
+// The bot's menu: kept short for small screens. /yesterday, /streak, /stats and
+// /about still work, are listed in /help and linked from other replies.
 const COMMANDS = [
   { command: 'play', description: 'Today\'s puzzle' },
   { command: 'archive', description: 'Past puzzles' },

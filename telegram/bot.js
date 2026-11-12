@@ -128,7 +128,20 @@ function sendArchive(api, chatId, start) {
   });
 }
 
-const HELP = '/play — today\'s puzzle\n/yesterday — yesterday\'s puzzle\n/archive — past puzzles (/archive 497 or /archive 2026-10-05)\n/streak — your streak\n/leaderboard — today\'s best players and current streaks (/leaderboard_all for all time)\n/stats — players, games and win rate, today and all time\n\nThe puzzle message updates itself every day, so you can keep playing in the same one.';
+const HELP = '/play — today\'s puzzle\n/yesterday — yesterday\'s puzzle\n/archive — past puzzles (/archive 497 or /archive 2026-10-05)\n/streak — your streak\n/leaderboard — today\'s best players and current streaks (/leaderboard_all for all time)\n/stats — players, games and win rate, today and all time\n/about — about GlowGrid\n\nThe puzzle message updates itself every day, so you can keep playing in the same one.';
+
+const ABOUT = [
+  '✨ GlowGrid: a free daily puzzle inspired by Lights Out.',
+  '',
+  'Light up all 25 cells. Tapping an ON cell flips it and its + neighbours (up, down, left, right); an OFF cell flips it and its × neighbours (diagonals). Fewer moves is better.',
+  '',
+  'Everyone gets the same grid each day. It is made by scrambling a solved grid, so it can always be solved.',
+  '',
+  `Also on the web, with music, hints and song challenges: ${SITE_URL}`,
+  'Open source: https://github.com/ErwannRobin/glowgrid',
+  '',
+  'Play: /play · All commands: /help',
+].join('\n');
 
 async function onMessage(api, store, msg, now) {
   const text = (msg.text || '').trim();
@@ -164,6 +177,9 @@ async function onMessage(api, store, msg, now) {
     }
     const rec = await getRecord(store, msg.from.id);
     return api('sendMessage', { chat_id: chatId, text: await leaderboardText(store, msg.from, rec, mode, now) });
+  }
+  if (command === '/about') {
+    return api('sendMessage', { chat_id: chatId, text: ABOUT, link_preview_options: { is_disabled: true } });
   }
   if (command === '/stats') {
     const rec = await getRecord(store, msg.from.id);
