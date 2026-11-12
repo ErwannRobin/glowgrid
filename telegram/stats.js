@@ -79,6 +79,7 @@ async function statsText(store, day) {
     formatBlock(`All time${since ? ` (since ${formatYmd(Number(since))})` : ''}`, count(players), count(stats[0]), count(stats[1])),
     '',
     'A game starts with the first move (Reset starts a new one) and is won when solved. Archive puzzles don\'t count.',
+    'Leaderboard: /leaderboard',
   ].join('\n');
 }
 

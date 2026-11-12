@@ -199,7 +199,7 @@ test('/leaderboard ranks today by fewest moves (ties: first solve) and shows the
   assert.match(moves, /🥇 Cy — 9 moves\n🥈 Ann — 12 moves\n🥉 Bob — 12 moves\n4\. X1\d — 30 moves/);
   assert.match(moves, /You: #11 of 11 — 40 moves/);
 
-  assert.match(text, /All-time records: \/leaderboard_all$/);
+  assert.match(text, /All-time records: \/leaderboard_all\nYour streak: \/streak$/);
 
   const none = await leaderboard(store, 99, '/leaderboard', t(15));
   assert.match(none.split('\n\n')[1], /You: not solved yet/);
@@ -283,6 +283,7 @@ test('/stats counts players, games and wins today and all time', async () => {
   const [title, today, all] = text.split('\n\n');
   assert.match(title, /puzzle #680 \(11 Nov 2026\)/);
   assert.equal(today, 'Today\n👥 Players: 3\n🎮 Games: 3\n✅ Win rate: 33% (1 of 3)');
+  assert.match(text, /\nLeaderboard: \/leaderboard$/);
   assert.equal(all, 'All time (since 10 Nov 2026)\n👥 Players: 3\n🎮 Games: 4\n✅ Win rate: 50% (2 of 4)');
 });
 
@@ -294,4 +295,16 @@ test('/stats before any game', async () => {
 
 test('the widget reports a game start on the first move of today\'s puzzle', () => {
   assert.ok(getWidgetHtml().includes("if (M == 1 && !A && T && T.viewer) T.request('s' + Y)"));
+});
+
+test('/help lists the commands left out of the menu', async () => {
+  const text = await leaderboard(createMemoryStore(), 1, '/help', new Date());
+  for (const c of ['/yesterday', '/streak', '/stats', '/about', '/leaderboard_all']) assert.ok(text.includes(c), c);
+});
+
+test('/about describes the game and links the website', async () => {
+  const text = await leaderboard(createMemoryStore(), 1, '/about', new Date());
+  assert.match(text, /Lights Out/);
+  assert.match(text, /https:\/\/glow-grid\.erwann\.app/);
+  assert.match(text, /\/play/);
 });

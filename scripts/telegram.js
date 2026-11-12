@@ -22,13 +22,13 @@ try {
 const { ALLOWED_UPDATES, createApi, handleUpdate, webhookSecret } = require('../telegram/bot');
 const { createStore } = require('../telegram/store');
 
+// The bot's menu: kept short for small screens. /yesterday, /streak, /stats and
+// /about still work, are listed in /help and linked from other replies.
 const COMMANDS = [
   { command: 'play', description: 'Today\'s puzzle' },
-  { command: 'yesterday', description: 'Yesterday\'s puzzle' },
   { command: 'archive', description: 'Past puzzles' },
-  { command: 'streak', description: 'Your streak' },
-  { command: 'leaderboard', description: 'Best players: today, or /leaderboard_all' },
-  { command: 'stats', description: 'Players, games and win rate' },
+  { command: 'leaderboard', description: 'Leaderboard' },
+  { command: 'help', description: 'All commands' },
 ];
 
 function fail(msg) {

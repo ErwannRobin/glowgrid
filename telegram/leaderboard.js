@@ -151,6 +151,7 @@ async function currentLeaderboard(store, userId, rec, now) {
       'No streaks yet.', 'You: no streak yet — /play'),
     '',
     'All-time records: /leaderboard_all',
+    'Your streak: /streak',
   ].join('\n');
 }
 
