@@ -123,7 +123,7 @@ The bot trusts the client's "solved" claim, like the website trusts its own `loc
 
    It uses `TELEGRAM_WEBHOOK_BASE_URL`; pass `URL=https://...` to target another deployment once.
 
-   This calls `setWebhook` with `allowed_updates` including `widget_query`, and registers the `/play`, `/yesterday`, `/archive`, `/streak` and `/leaderboard` commands (run it again after adding a command). Check it with `node scripts/telegram.js info`. Before switching, it sends an empty update to the deployment and stops without changing anything if the deployment rejects the secret (for example, a `TELEGRAM_WEBHOOK_SECRET` is still set on Vercel).
+   This calls `setWebhook` with `allowed_updates` including `widget_query`, and registers the menu commands `/play`, `/archive`, `/leaderboard` and `/help` (`COMMANDS` in `scripts/telegram.js`; kept short for phones, so `/yesterday`, `/streak`, `/stats` and `/leaderboard_all` are left out but listed in `/help` and linked from other replies; run it again after changing it). Check it with `node scripts/telegram.js info`. Before switching, it sends an empty update to the deployment and stops without changing anything if the deployment rejects the secret (for example, a `TELEGRAM_WEBHOOK_SECRET` is still set on Vercel).
 
 `vercel.json` adds `telegram/widget.html` to the function bundle; the bot minifies it on cold start.
 
