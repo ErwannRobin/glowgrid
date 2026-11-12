@@ -680,6 +680,13 @@ body {
   letter-spacing: 0.2px;
 }
 
+.win-community {
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(203,213,225,0.85);
+  margin: -4px 0 14px;
+}
+
 .win-next {
   font-size: 12px;
   line-height: 1.4;
@@ -1200,6 +1207,9 @@ html.playables.paused *::after { animation-play-state: paused !important; }
     <div class="win-moves-line" id="win-moves-line"></div>
     <div class="win-hints-line" id="win-hints-line" style="display:none"></div>
     <div class="win-streak" id="win-streak" style="display:none"></div>
+    <!-- web-only -->
+    <div class="win-community" id="win-community" style="display:none"></div>
+    <!-- /web-only -->
     <div class="win-next" id="win-next" style="display:none"></div>
     <div class="win-actions">
       <!-- web-only -->
@@ -1553,6 +1563,55 @@ function unsolvedPuzzleCount() {
   }
   return n;
 }
+
+// web-only: anonymous play statistics (POST /api/stats, see web/stats.js).
+// Only today's puzzle is reported, and nothing identifies the player: the
+// browser just remembers the last day it was counted as a player.
+
+const STATS_PLAYED_KEY = 'glowgrid-stats-played';
+let _statsWinSeq = 0;
+
+function statsDay() {
+  const [y, m, d] = todayKey().split('-').map(Number);
+  return y * 10000 + m * 100 + d;
+}
+
+function postStats(event) {
+  return fetch('/api/stats', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(event),
+    keepalive: true,
+  }).then(r => (r.ok ? r.json() : null)).catch(() => null);
+}
+
+function reportGameStart() {
+  if (isSongMode || currentDateKey !== todayKey()) return;
+  const d = statsDay();
+  const first = _lsGet(STATS_PLAYED_KEY) !== String(d);
+  _lsSet(STATS_PLAYED_KEY, String(d));
+  postStats({ e: 's', d, f: first ? 1 : 0 });
+}
+
+function reportWin(firstSolve) {
+  if (isSongMode || currentDateKey !== todayKey()) return;
+  const seq = ++_statsWinSeq;
+  postStats({ e: 'w', d: statsDay(), m: moves, f: firstSolve ? 1 : 0 }).then(s => {
+    const overlay = document.getElementById('win-overlay');
+    if (!s || !s.players || seq !== _statsWinSeq || !overlay.classList.contains('visible')) return;
+    const num = n => n.toLocaleString('en');
+    const solved = Math.round(Math.min(s.solvers, s.players) / s.players * 100);
+    const lines = [`👥 ${num(s.players)} player${s.players === 1 ? '' : 's'} today · ${solved}% solved it`];
+    if (s.solvers <= 1) lines.push('You\'re the first to solve it today!');
+    else lines.push(`Median ${s.median} moves${s.beat ? ` · you beat ${s.beat}% of solvers` : ''}`);
+    const el = document.getElementById('win-community');
+    el.textContent = lines.join('\n');
+    el.style.whiteSpace = 'pre-line';
+    el.style.display = '';
+    fitWinCard();
+  });
+}
+// /web-only
 
 // ── Patterns ────────────────────────────────────────────────
 
@@ -1962,6 +2021,7 @@ function handleClick(i, cell) {
   applyToggle(i);
   moves++;
   moveHistory.push({ cellIndex: i, cellWasOn, isHint: wasHintCell });
+  if (moves === 1 && typeof reportGameStart === 'function') reportGameStart();
 
   if (wasHintCell) {
     playMusicalClick(i, cellWasOn);
@@ -2671,6 +2731,10 @@ function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
     winHintsLine.style.display = 'none';
   }
 
+  // Players today (web only, filled in by reportWin once the server answers)
+  const communityEl = document.getElementById('win-community');
+  if (communityEl) communityEl.style.display = 'none';
+
   // Streak badge
   const streakEl = document.getElementById('win-streak');
   if (!replayMode && streakUpdated) {
@@ -2759,6 +2823,7 @@ function checkWin() {
     showWinOverlay({ streakUpdated: false });
   } else {
     const streakUpdated = tryUpdateStreak();
+    const firstSolve = !save.solved[currentDateKey];
     markSolved(currentDateKey, moves);
     persistSave();
     refreshStreakDisplay();
@@ -2774,6 +2839,7 @@ function checkWin() {
     }
 
     showWinOverlay({ streakUpdated });
+    if (typeof reportWin === 'function') reportWin(firstSolve);
   }
   playWin();
   spawnParticles();

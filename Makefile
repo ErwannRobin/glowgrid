@@ -1,7 +1,7 @@
 PORT ?= 8000
 
 .DEFAULT_GOAL := help
-.PHONY: help serve check og bump-cache playables playables-dev telegram telegram-size telegram-preview telegram-test telegram-poll telegram-webhook
+.PHONY: help serve check test og bump-cache playables playables-dev telegram telegram-size telegram-preview telegram-test telegram-poll telegram-webhook
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  \033[36m%-17s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -35,6 +35,9 @@ telegram-size: ## Show the Telegram widget size against its limits (4096 bytes a
 telegram-preview: telegram ## Serve the Telegram widget with a local TelegramWidget mock
 	@echo "Open http://127.0.0.1:$(PORT)/dist/telegram/preview.html"
 	@python3 -m http.server $(PORT) --bind 127.0.0.1
+
+test: telegram ## Run all tests (Telegram bot and web stats)
+	@node --test telegram/bot.test.js web/stats.test.js
 
 telegram-test: telegram ## Run the Telegram bot tests
 	@node --test telegram/bot.test.js
