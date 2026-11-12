@@ -1601,12 +1601,8 @@ function reportWin(firstSolve) {
     if (!s || !s.players || seq !== _statsWinSeq || !overlay.classList.contains('visible')) return;
     const num = n => n.toLocaleString('en');
     const solved = Math.round(Math.min(s.solvers, s.players) / s.players * 100);
-    const lines = [`👥 ${num(s.players)} player${s.players === 1 ? '' : 's'} today · ${solved}% solved it`];
-    if (s.solvers <= 1) lines.push('You\'re the first to solve it today!');
-    else lines.push(`Median ${s.median} moves${s.beat ? ` · you beat ${s.beat}% of solvers` : ''}`);
     const el = document.getElementById('win-community');
-    el.textContent = lines.join('\n');
-    el.style.whiteSpace = 'pre-line';
+    el.textContent = `👥 ${num(s.players)} player${s.players === 1 ? '' : 's'} today · ${solved}% solved it`;
     el.style.display = '';
     fitWinCard();
   });
@@ -2764,10 +2760,11 @@ function showWinOverlay({ streakUpdated = false, replayMode = false } = {}) {
   const shareBtn = document.getElementById('btn-share');
   if (shareBtn) shareBtn.style.display = replayMode ? 'none' : '';
 
-  // What's left to play (Playables must say when there is no more content)
+  // What's left to play (Playables must say when there is no more content;
+  // the web win screen stays short and skips it)
   const nextEl = document.getElementById('win-next');
   const unsolved = unsolvedPuzzleCount();
-  if (!replayMode && !isSongMode && save.solved[todayKey()]) {
+  if (IS_PLAYABLE && !replayMode && !isSongMode && save.solved[todayKey()]) {
     nextEl.textContent = unsolved === 0
       ? 'You\'ve solved every puzzle! A new one arrives tomorrow.'
       : `New puzzle tomorrow · ${unsolved} earlier puzzle${unsolved === 1 ? '' : 's'} left to solve (‹)`;
