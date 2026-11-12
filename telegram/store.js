@@ -6,7 +6,7 @@
 // an in-memory store: fine for local polling, but serverless instances forget it.
 //
 // Both stores expose the same small API: strings (get/set), sorted sets (z*)
-// and hashes (hset/hincrby/hmget). Sorted-set ties are ordered by member, like Redis.
+// and hashes (hset/hincrby/hmget/hgetall). Sorted-set ties are ordered by member, like Redis.
 
 function createRedisStore(url, token, fetchImpl = fetch) {
   async function command(args) {
@@ -50,6 +50,12 @@ function createRedisStore(url, token, fetchImpl = fetch) {
     hset: (key, field, value) => command(['HSET', key, field, value]),
     hincrby: (key, field, by) => command(['HINCRBY', key, field, by]),
     hmget: (key, fields) => (fields.length ? command(['HMGET', key, ...fields]) : []),
+    // Whole hash as {field: value}
+    hgetall: async key => {
+      const flat = await command(['HGETALL', key]) || [], out = {};
+      for (let i = 0; i < flat.length; i += 2) out[flat[i]] = flat[i + 1];
+      return out;
+    },
   };
 }
 
@@ -102,6 +108,7 @@ function createMemoryStore() {
       return v;
     },
     hmget: async (key, fields) => fields.map(f => (hashes.get(key) && hashes.get(key).get(String(f))) ?? null),
+    hgetall: async key => Object.fromEntries(hashes.get(key) || []),
   };
 }
 
