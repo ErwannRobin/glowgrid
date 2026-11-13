@@ -16,8 +16,13 @@
 //   gg:web:stats:<YYYYMMDD>  hash  players, games, solvers, wins
 //   gg:web:moves:<YYYYMMDD>  hash  moves → first solves with that many moves
 //   gg:web:stats             hash  games, wins (all time)
+//
+// GET /api/stats?d=YYYYMMDD returns overview(): the day's and all-time totals
+// for the website and the Telegram bot (keys in telegram/stats.js), for the
+// stats page (stats.html).
 
 const { shiftYmd, utcYmd } = require('../telegram/dates');
+const { K: TG } = require('../telegram/stats');
 
 const K = {
   day: ymd => `gg:web:stats:${ymd}`,
@@ -88,4 +93,38 @@ async function recordEvent(store, ev) {
   return ev.e === 'w' ? dayStats(store, ev.d, ev.m) : null;
 }
 
-module.exports = { K, MAX_MOVES, dayStats, isPlausibleDay, parseEvent, recordEvent };
+// GET query: ?d=YYYYMMDD (player's local date), else UTC today
+function parseDay(query, now = new Date()) {
+  const d = Number(query && query.d);
+  return Number.isInteger(d) && shiftYmd(d, 0) === d && isPlausibleDay(d, now) ? d : utcYmd(now);
+}
+
+// Totals for the stats page: web and Telegram, for `ymd` and all time
+async function overview(store, ymd) {
+  const [webDay, webTotal, tgDayPlayers, tgDay, tgPlayers, tgTotal, tgSince] = await Promise.all([
+    store.hmget(K.day(ymd), ['players', 'games', 'solvers', 'wins']),
+    store.hmget(K.total, ['games', 'wins']),
+    store.zcard(TG.dayPlayers(ymd)),
+    store.hmget(TG.dayStats(ymd), ['games', 'wins']),
+    store.zcard(TG.players),
+    store.hmget(TG.stats, ['games', 'wins']),
+    store.get(TG.since),
+  ]);
+  const [players, games, solvers, wins] = webDay.map(count);
+  // Never fewer games than wins, or players than solvers (see dayStats)
+  const totals = (g, w) => ({ games: Math.max(count(g), count(w)), wins: count(w) });
+  return {
+    day: ymd,
+    web: {
+      today: { players: Math.max(players, solvers), solvers, ...totals(games, wins) },
+      allTime: totals(...webTotal),
+    },
+    telegram: {
+      today: { players: count(tgDayPlayers), ...totals(...tgDay) },
+      allTime: { players: count(tgPlayers), ...totals(...tgTotal) },
+      since: tgSince ? Number(tgSince) : null,
+    },
+  };
+}
+
+module.exports = { K, MAX_MOVES, dayStats, isPlausibleDay, overview, parseDay, parseEvent, recordEvent };

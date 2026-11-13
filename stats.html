@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#3b82f6" />
+<meta name="robots" content="noindex" />
+<link rel="canonical" href="https://glow-grid.erwann.app/stats.html" />
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<title>Glow-Grid Stats</title>
+<meta name="description" content="Your Glow-Grid stats, and how everyone is doing today on the website and on Telegram." />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #0a0f1e;
+  color: #cbd5e1;
+  line-height: 1.6;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* ── Background orbs (same as the game) ── */
+.bg-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.12;
+  pointer-events: none;
+  animation: orb-drift 22s ease-in-out infinite;
+}
+.bg-orb:nth-child(1) { width: 500px; height: 500px; background: #3b82f6; top: -150px; left: -150px; }
+.bg-orb:nth-child(2) { width: 350px; height: 350px; background: #8b5cf6; bottom: -80px; right: -80px; animation-delay: -8s; }
+.bg-orb:nth-child(3) { width: 250px; height: 250px; background: #06b6d4; bottom: 25%; left: 8%; animation-delay: -16s; }
+@keyframes orb-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(40px, -30px) scale(1.06); }
+  66%      { transform: translate(-25px, 40px) scale(0.94); }
+}
+
+/* ── Layout ── */
+main {
+  position: relative;
+  z-index: 1;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 28px 16px 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+header { text-align: center; padding-top: 8px; }
+.back {
+  display: inline-block;
+  font-size: 13px;
+  color: rgba(148,163,184,0.75);
+  text-decoration: none;
+  margin-bottom: 14px;
+  transition: color 0.2s;
+}
+.back:hover { color: #93c5fd; }
+h1 {
+  font-size: clamp(30px, 8.5vw, 42px);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+  color: #f1f5f9;
+}
+.tagline {
+  margin-top: 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: rgba(148,163,184,0.7);
+}
+
+/* ── Panels ── */
+.panel {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 22px;
+  padding: 22px 20px;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.04), 0 10px 30px rgba(0,0,0,0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+h2 { font-size: 20px; color: #f1f5f9; margin-bottom: 10px; }
+h2 .dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+  background: hsl(var(--hue), 75%, 58%);
+  box-shadow: 0 0 12px hsla(var(--hue), 80%, 60%, 0.8);
+}
+h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: rgba(148,163,184,0.85);
+  margin: 16px 0 8px;
+}
+.note { font-size: 13px; color: rgba(148,163,184,0.85); margin-top: 12px; }
+.panel a { color: #93c5fd; }
+
+/* ── Stat tiles ── */
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.tile {
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid hsla(var(--hue), 70%, 60%, 0.3);
+  background: linear-gradient(145deg, hsla(var(--hue), 70%, 55%, 0.14), rgba(255,255,255,0.02));
+  min-width: 0;
+}
+.tile .v {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: #f1f5f9;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.tile .l { display: block; font-size: 12px; color: rgba(203,213,225,0.85); }
+.tile .s { display: block; font-size: 11px; color: rgba(148,163,184,0.75); }
+@media (max-width: 420px) {
+  .tiles { grid-template-columns: repeat(2, 1fr); }
+  .tile .v { font-size: 21px; }
+}
+
+.headline { font-size: 15px; color: #e2e8f0; margin-bottom: 4px; }
+.headline strong { color: #f1f5f9; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.07);
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.2s;
+}
+.btn:hover { background: rgba(255,255,255,0.13); transform: translateY(-1px); }
+.btn:active { transform: scale(0.96); }
+.btn.primary {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-color: rgba(255,255,255,0.3);
+  color: #fff;
+  box-shadow: 0 0 24px rgba(99,102,241,0.4);
+}
+.btn:focus-visible { outline: 2px solid rgba(96,165,250,0.7); outline-offset: 2px; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
+.panel .btn.primary { color: #fff; }
+
+footer { text-align: center; font-size: 12px; color: rgba(148,163,184,0.55); padding-top: 4px; }
+footer a { color: rgba(148,163,184,0.8); }
+footer a:hover { color: #93c5fd; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-orb { animation: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="bg-orb"></div>
+<div class="bg-orb"></div>
+<div class="bg-orb"></div>
+
+<main>
+  <header>
+    <a class="back" href="about.html">← About Glow-Grid</a>
+    <h1>Stats</h1>
+    <div class="tagline" id="tagline">Light them all</div>
+  </header>
+
+  <section class="panel" aria-labelledby="h-me" style="--hue:200">
+    <h2 id="h-me"><span class="dot"></span>Your stats</h2>
+    <div id="me"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-today" style="--hue:160">
+    <h2 id="h-today"><span class="dot"></span>Today</h2>
+    <div id="today" aria-live="polite"><p class="note">Loading…</p></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-all" style="--hue:280">
+    <h2 id="h-all"><span class="dot"></span>All time</h2>
+    <div id="all-time" aria-live="polite"><p class="note">Loading…</p></div>
+  </section>
+
+  <p class="note" style="text-align:center">Players are counted without any account or ID: the website keeps daily totals only. Only today's puzzle counts in these totals (no archive or song challenges).</p>
+
+  <footer><a href="/">Play today's puzzle</a> · <a href="about.html">About</a></footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  function lsGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+  function num(n) { return Number(n || 0).toLocaleString('en'); }
+  function pct(part, whole) { return whole ? Math.round(Math.min(part, whole) / whole * 100) + '%' : '—'; }
+  function plural(n, word) { return num(n) + ' ' + word + (n === 1 ? '' : 's'); }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
+  }
+  function tile(value, label, sub) {
+    return '<div class="tile"><span class="v">' + esc(value) + '</span><span class="l">' + esc(label) + '</span>' +
+      (sub ? '<span class="s">' + esc(sub) + '</span>' : '') + '</div>';
+  }
+
+  // Date keys as in the game: "YYYY-M-D" in local time
+  function keyOf(d) { return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+  function dateOf(key) { var p = key.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
+  var MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
+  function formatKey(key) { var d = dateOf(key); return d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear(); }
+  function formatYmd(ymd) { return formatKey(Math.floor(ymd / 10000) + '-' + Math.floor(ymd / 100) % 100 + '-' + ymd % 100); }
+
+  var now = new Date();
+  var today = keyOf(now);
+  var yesterday = keyOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
+  var puzzleNo = Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(2025, 0, 1)) / 86400000) + 1;
+  document.getElementById('tagline').textContent = 'Puzzle #' + puzzleNo + ' · ' + formatKey(today);
+
+  // ── Personal stats (this browser) ──
+  // glowgrid-my-stats: {g: games, w: wins, h: wins with hints, since}, written by the game.
+  // glowgrid-solved / glowgrid-streak: the game's save.
+  function renderMe() {
+    var my = null, solved = null;
+    try { my = JSON.parse(lsGet('glowgrid-my-stats') || 'null'); } catch (e) {}
+    try { solved = JSON.parse(lsGet('glowgrid-solved') || 'null'); } catch (e) {}
+    my = my && typeof my === 'object' ? my : {};
+    var games = Number(my.g) || 0, wins = Number(my.w) || 0, hints = Number(my.h) || 0;
+    var solvedCount = solved && typeof solved === 'object' ? Object.keys(solved).length : 0;
+    var lastStreak = lsGet('glowgrid-last-streak-date');
+    var streak = lastStreak === today || lastStreak === yesterday ? parseInt(lsGet('glowgrid-streak') || '0', 10) || 0 : 0;
+
+    var el = document.getElementById('me');
+    if (!games && !solvedCount) {
+      el.innerHTML = '<p>No games yet in this browser. Play a puzzle and your stats will show up here.</p>' +
+        '<div class="btn-row"><a class="btn primary" href="/">Play today\'s puzzle</a></div>';
+      return;
+    }
+    games = Math.max(games, wins);
+    el.innerHTML =
+      '<div class="tiles">' +
+        tile(num(games), 'Games played') +
+        tile(pct(wins, games), 'Success rate', games ? num(wins) + ' of ' + num(games) + ' solved' : null) +
+        tile(num(hints), 'Solved with hints', wins ? pct(hints, wins) + ' of your solves' : null) +
+      '</div>' +
+      '<h3>Progress</h3>' +
+      '<div class="tiles">' +
+        tile(num(solvedCount), 'Puzzles solved', 'all time') +
+        tile(streak ? num(streak) : '—', 'Current streak', streak ? plural(streak, 'day') : null) +
+      '</div>' +
+      '<p class="note">Saved in this browser only' +
+        (/^\d{4}-\d{1,2}-\d{1,2}$/.test(my.since) ? '. Games counted since ' + esc(formatKey(my.since)) : '') +
+        '. A game starts with your first move; song challenges don\'t count.</p>';
+  }
+  renderMe();
+
+  // ── Global stats (website + Telegram) ──
+  function source(title, s, withPlayers) {
+    return '<h3>' + title + '</h3><div class="tiles">' +
+      (withPlayers ? tile(num(s.players), 'Players') : '') +
+      tile(num(s.games), 'Games') +
+      tile(pct(s.wins, s.games), 'Win rate', s.games ? plural(s.wins, 'win') : null) +
+      '</div>';
+  }
+
+  function renderGlobal(o) {
+    var w = o.web, t = o.telegram;
+    var players = w.today.players + t.today.players;
+    var games = w.today.games + t.today.games, wins = w.today.wins + t.today.wins;
+    document.getElementById('today').innerHTML =
+      '<p class="headline"><strong>' + plural(players, 'player') + '</strong> on puzzle #' + puzzleNo +
+        (games ? ' · <strong>' + pct(wins, games) + '</strong> of games won' : '') + '</p>' +
+      source('🌐 Website', w.today, true) +
+      source('✈️ Telegram', t.today, true);
+    var allGames = w.allTime.games + t.allTime.games, allWins = w.allTime.wins + t.allTime.wins;
+    document.getElementById('all-time').innerHTML =
+      '<p class="headline"><strong>' + plural(allGames, 'game') + '</strong> played' +
+        (allGames ? ' · <strong>' + pct(allWins, allGames) + '</strong> won' : '') + '</p>' +
+      source('🌐 Website', w.allTime, false) +
+      source('✈️ Telegram', t.allTime, true) +
+      (t.since ? '<p class="note">Telegram counted since ' + esc(formatYmd(t.since)) + '. Website players aren\'t tracked across days.</p>' : '');
+  }
+
+  function failGlobal() {
+    var msg = '<p class="note">Stats are unavailable right now. Try again later.</p>';
+    document.getElementById('today').innerHTML = msg;
+    document.getElementById('all-time').innerHTML = msg;
+  }
+
+  var d = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+  fetch('/api/stats?d=' + d)
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (o) { if (o && o.web && o.telegram) renderGlobal(o); else failGlobal(); })
+    .catch(failGlobal);
+})();
+</script>
+</body>
+</html>
