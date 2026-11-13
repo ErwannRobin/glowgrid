@@ -21,6 +21,23 @@ The page posts events to `POST /api/stats` (`api/stats.js`, logic in `web/stats.
 
 The win response returns `{players, solvers, games, wins, median, beat}`; the page shows nothing if the request fails (offline, `make serve`).
 
+## Stats page
+
+`stats.html` (linked from the About page) shows:
+
+- **Your stats**, read from this browser's `localStorage`: games played, success rate and puzzles solved with hints (`glowgrid-my-stats`: `{g, w, h, since}`, written by the game on the first move and on each win; every puzzle counts except song challenges), plus puzzles solved and the current streak from the game's save. Nothing is sent to the server.
+- **Today** and **All time** totals for the website and the Telegram bot, from `GET /api/stats?d=YYYYMMDD` (the player's local date; the server falls back to UTC today). The response (cached 60 s at the edge):
+
+```json
+{
+  "day": 20261113,
+  "web": { "today": { "players": 120, "solvers": 80, "games": 150, "wins": 95 }, "allTime": { "games": 4200, "wins": 2900 } },
+  "telegram": { "today": { "players": 30, "games": 41, "wins": 27 }, "allTime": { "players": 310, "games": 1900, "wins": 1300 }, "since": 20261101 }
+}
+```
+
+The website has no all-time player count: it stores no ids, so players can't be told apart across days.
+
 ## Privacy and trust
 
 No user id, IP or name is stored: only per-day counters and a moves histogram. Results are not verified (nothing to win), so anyone can skew a day's numbers by posting events; add a Vercel Firewall rate limit on `/api/stats` if that becomes a problem.

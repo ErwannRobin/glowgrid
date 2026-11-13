@@ -1607,6 +1607,33 @@ function reportWin(firstSolve) {
     fitWinCard();
   });
 }
+
+// Personal stats for the stats page (stats.html), kept in this browser only:
+// {g: games started, w: wins, h: wins with at least one hint, since: first day}.
+// Every puzzle counts (archive too), except song challenges.
+const MY_STATS_KEY = 'glowgrid-my-stats';
+
+function updateMyStats(change) {
+  let my = null;
+  try { my = JSON.parse(_lsGet(MY_STATS_KEY) || 'null'); } catch (_) {}
+  if (!my || typeof my !== 'object') my = {};
+  const n = v => (Number.isInteger(v) && v >= 0 ? v : 0);
+  const out = { g: n(my.g), w: n(my.w), h: n(my.h), since: typeof my.since === 'string' ? my.since : todayKey() };
+  change(out);
+  _lsSet(MY_STATS_KEY, JSON.stringify(out));
+}
+
+function trackMyGame() {
+  if (!isSongMode) updateMyStats(my => { my.g++; });
+}
+
+function trackMyWin(withHints) {
+  updateMyStats(my => {
+    my.w++;
+    my.g = Math.max(my.g, my.w); // a game started before tracking existed
+    if (withHints) my.h++;
+  });
+}
 // /web-only
 
 // ── Patterns ────────────────────────────────────────────────
@@ -2017,7 +2044,10 @@ function handleClick(i, cell) {
   applyToggle(i);
   moves++;
   moveHistory.push({ cellIndex: i, cellWasOn, isHint: wasHintCell });
-  if (moves === 1 && typeof reportGameStart === 'function') reportGameStart();
+  if (moves === 1 && typeof reportGameStart === 'function') {
+    reportGameStart();
+    trackMyGame();
+  }
 
   if (wasHintCell) {
     playMusicalClick(i, cellWasOn);
@@ -2821,6 +2851,7 @@ function checkWin() {
   } else {
     const streakUpdated = tryUpdateStreak();
     const firstSolve = !save.solved[currentDateKey];
+    if (typeof trackMyWin === 'function') trackMyWin(hintsUsed > 0);
     markSolved(currentDateKey, moves);
     persistSave();
     refreshStreakDisplay();

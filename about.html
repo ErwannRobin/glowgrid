@@ -108,27 +108,7 @@ main {
   gap: 18px;
 }
 
-/* ── Sound button ── */
-.sound-btn {
-  position: fixed;
-  top: 14px;
-  right: 14px;
-  z-index: 5;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.06);
-  color: #e2e8f0;
-  font-size: 18px;
-  cursor: pointer;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transition: background 0.2s, transform 0.15s;
-}
-.sound-btn:hover { background: rgba(255,255,255,0.12); }
-.sound-btn:active { transform: scale(0.92); }
-.sound-btn:focus-visible, .cell:focus-visible, .btn:focus-visible, .card:focus-visible {
+.cell:focus-visible, .btn:focus-visible, .card:focus-visible {
   outline: 2px solid rgba(96,165,250,0.7);
   outline-offset: 2px;
 }
@@ -350,8 +330,6 @@ footer a:hover { color: #93c5fd; }
 <div class="bg-orb"></div>
 <div class="notes-layer" id="notes-layer" aria-hidden="true"></div>
 
-<button class="sound-btn" id="sound-btn" type="button" aria-label="Toggle sound" title="Toggle sound">🔊</button>
-
 <main>
   <header>
     <a class="back" href="/">← Back to the game</a>
@@ -410,13 +388,19 @@ footer a:hover { color: #93c5fd; }
     </div>
   </section>
 
+  <section class="panel" aria-labelledby="h-stats" style="--hue:330">
+    <h2 id="h-stats"><span class="dot"></span>Stats</h2>
+    <p>See your own numbers (games played, success rate, puzzles solved with hints) and how everyone is doing today, on the website and on Telegram.</p>
+    <div class="btn-row"><a class="btn" href="stats.html">See the stats</a></div>
+  </section>
+
   <section class="panel" aria-labelledby="h-code" style="--hue:230">
     <h2 id="h-code"><span class="dot"></span>Open source</h2>
     <p>Glow-Grid is a single HTML file with no frameworks and no build step. All sounds are made live in your browser with the Web Audio API. The code is free to read on <a href="https://github.com/erwannRobin/glowgrid/" target="_blank" rel="noopener">GitHub</a>.</p>
     <div class="btn-row"><a class="btn" href="https://github.com/erwannRobin/glowgrid/" target="_blank" rel="noopener">View on GitHub</a></div>
   </section>
 
-  <footer>Made by <a href="http://erwann.lovable.app" target="_blank" rel="noopener">Erwann</a> · <a href="/">Back to the game</a></footer>
+  <footer>Made by <a href="http://erwann.lovable.app" target="_blank" rel="noopener">Erwann</a> · <a href="stats.html">Stats</a> · <a href="/">Back to the game</a></footer>
 </main>
 
 <script>
@@ -431,10 +415,10 @@ footer a:hover { color: #93c5fd; }
   var ROW_MULT = [0.5, 0.75, 1.0, 1.5, 2.0];
   function cellFreq(i) { return PENTA_BASE[i % SIZE] * ROW_MULT[Math.floor(i / SIZE)]; }
 
+  // Follows the game's mute setting
   var soundOn = true;
   try { soundOn = localStorage.getItem('gg_sound') !== 'off'; } catch (e) {}
   var ctx = null, master = null;
-  var soundBtn = document.getElementById('sound-btn');
 
   function getCtx() {
     if (!ctx) {
@@ -478,18 +462,6 @@ footer a:hover { color: #93c5fd; }
     if (!soundOn) return;
     try { tone(freq, 0.12, 0.9, delay); tone(freq * 2, 0.025, 0.5, delay); } catch (e) {}
   }
-
-  function updateSoundBtn() {
-    soundBtn.textContent = soundOn ? '🔊' : '🔇';
-    soundBtn.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
-  }
-  soundBtn.addEventListener('click', function () {
-    soundOn = !soundOn;
-    try { localStorage.setItem('gg_sound', soundOn ? 'on' : 'off'); } catch (e) {}
-    updateSoundBtn();
-    if (soundOn) note(PENTA_BASE[2]);
-  });
-  updateSoundBtn();
 
   // ── Music notes animation ──
   var layer = document.getElementById('notes-layer');
