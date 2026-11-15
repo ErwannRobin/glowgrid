@@ -139,4 +139,5 @@ Runs the bot with long polling and an in-memory store. Telegram refuses long pol
 ## Current Telegram limitations
 
 - In production, widgets can be sent **only to private chats** with the bot, and those messages are protected: they **can't be forwarded**. Groups, inline mode and forwarding work only on Telegram's test server for now, so there is no in-Telegram sharing yet.
+- **Widgets are currently disabled by Telegram for bots**: `sendWidget` fails with `INPUT_MEDIA_WIDGET_NOT_ALLOWED`. `sendWidget()` in `telegram/bot.js` catches this error and replies with a plain message ("temporarily unavailable, waiting for a fix on Telegram's side") plus a link to the website. Other errors are still thrown. Nothing to change when Telegram fixes it: the widget is sent again as soon as the call succeeds.
 - Widget payments use a TON wallet (`TelegramWidget.wallet`), not Telegram Stars. GlowGrid doesn't use them.

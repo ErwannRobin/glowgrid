@@ -159,6 +159,47 @@ test('"y" widget query (win screen button) sends yesterday\'s puzzle', async () 
   assert.ok(!calls[1].params.allow_queries);
 });
 
+// ── Widgets disabled by Telegram ─────────────────────────────
+
+function widgetDisabledApi() {
+  const calls = [];
+  const api = async (method, params) => {
+    calls.push({ method, params });
+    if (method === 'sendWidget') throw new Error('sendWidget failed: Bad Request: INPUT_MEDIA_WIDGET_NOT_ALLOWED');
+    return true;
+  };
+  return { api, calls };
+}
+
+test('/play answers with a "temporarily unavailable" message when Telegram refuses widgets', async () => {
+  const { api, calls } = widgetDisabledApi();
+  await handleUpdate({ message: { text: '/play', chat: { id: 7 }, from: { id: 7 } } }, { api, store: createMemoryStore() });
+  assert.deepEqual(calls.map(c => c.method), ['sendWidget', 'sendMessage']);
+  assert.equal(calls[1].params.chat_id, 7);
+  assert.match(calls[1].params.text, /temporarily unavailable/);
+  assert.match(calls[1].params.text, /waiting for a fix/);
+});
+
+test('/yesterday and the "y" button also fall back to the message', async () => {
+  for (const update of [
+    { message: { text: '/yesterday', chat: { id: 7 }, from: { id: 7 } } },
+    { widget_query: { id: 'q1', data: 'y', from: { id: 7 }, chat: { id: 7 }, message_id: 3 } },
+  ]) {
+    const { api, calls } = widgetDisabledApi();
+    await handleUpdate(update, { api, store: createMemoryStore() });
+    assert.equal(calls[calls.length - 1].method, 'sendMessage');
+    assert.match(calls[calls.length - 1].params.text, /temporarily unavailable/);
+  }
+});
+
+test('other sendWidget errors are not hidden', async () => {
+  const api = async () => { throw new Error('sendWidget failed: Bad Request: chat not found'); };
+  await assert.rejects(
+    handleUpdate({ message: { text: '/play', chat: { id: 7 }, from: { id: 7 } } }, { api, store: createMemoryStore() }),
+    /chat not found/,
+  );
+});
+
 // ── Leaderboard ──────────────────────────────────────────────
 
 const { parseLeaderboardMode } = require('./leaderboard');
