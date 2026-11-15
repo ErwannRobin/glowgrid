@@ -97,14 +97,36 @@ async function getRecord(store, userId) {
   try { return JSON.parse(await store.get(storeKey(userId))) || null; } catch { return null; }
 }
 
-function sendWidget(api, chatId, params) {
-  return api('sendWidget', {
-    chat_id: chatId,
-    html: getWidgetHtml(),
-    height: WIDGET_HEIGHT,
-    reply_markup: { inline_keyboard: [[{ text: 'Play on the web', url: SITE_URL }]] },
-    ...params,
-  });
+// Telegram turned HTML widgets off for bots (error INPUT_MEDIA_WIDGET_NOT_ALLOWED).
+// Until it is back, tell the player instead of failing silently.
+const WIDGET_DISABLED_ERROR = 'INPUT_MEDIA_WIDGET_NOT_ALLOWED';
+const WIDGET_DISABLED_TEXT = [
+  '🚧 The GlowGrid puzzle widget is temporarily unavailable.',
+  '',
+  'Telegram has turned off HTML widgets for bots. We are waiting for a fix on their side, and the puzzle will be back here as soon as it works again.',
+  '',
+  `In the meantime, play the same daily puzzle on the web: ${SITE_URL}`,
+].join('\n');
+
+async function sendWidget(api, chatId, params) {
+  try {
+    return await api('sendWidget', {
+      chat_id: chatId,
+      html: getWidgetHtml(),
+      height: WIDGET_HEIGHT,
+      reply_markup: { inline_keyboard: [[{ text: 'Play on the web', url: SITE_URL }]] },
+      ...params,
+    });
+  } catch (e) {
+    if (!String(e && e.message).includes(WIDGET_DISABLED_ERROR)) throw e;
+    console.error(e.message);
+    return api('sendMessage', {
+      chat_id: chatId,
+      text: WIDGET_DISABLED_TEXT,
+      link_preview_options: { is_disabled: true },
+      reply_markup: { inline_keyboard: [[{ text: 'Play on the web', url: SITE_URL }]] },
+    });
+  }
 }
 
 // Today's puzzle; chat data is the player's streak record
